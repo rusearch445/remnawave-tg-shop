@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     SUPPORT_LINK: Optional[str] = Field(default=None)
     SERVER_STATUS_URL: Optional[str] = Field(default=None)
     TERMS_OF_SERVICE_URL: Optional[str] = Field(default=None)
+    MAIN_MENU_LOGO: Optional[str] = Field(
+        default=None,
+        description=(
+            "Main menu logo image. Can be a file path inside the container "
+            "(e.g. /app/assets/logo.png), an http(s) URL, or a Telegram file_id."
+        ),
+    )
     REQUIRED_CHANNEL_ID: Optional[int] = Field(
         default=None,
         description="Telegram channel ID the user must join to access the bot")

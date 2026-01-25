@@ -1,5 +1,6 @@
 import logging
 import re
+from pathlib import Path
 from aiogram import Router, F, types, Bot
 from aiogram.utils.text_decorations import html_decoration as hd
 from aiogram.filters import CommandStart, Command
@@ -8,6 +9,7 @@ from typing import Optional, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramForbiddenError
+from aiogram.types import FSInputFile
 
 from db.dal import user_dal
 from db.models import User
@@ -26,6 +28,28 @@ from bot.middlewares.i18n import JsonI18n
 from bot.utils.text_sanitizer import sanitize_username, sanitize_display_name
 
 router = Router(name="user_start_router")
+
+def _resolve_logo_input(logo: str):
+    """
+    Resolve MAIN_MENU_LOGO into a sendable photo value for aiogram.
+    Supports:
+      - local file path inside container -> FSInputFile
+      - http(s) URL -> str
+      - Telegram file_id -> str (fallback)
+    """
+    raw = (logo or "").strip()
+    if not raw:
+        return None
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return raw
+    try:
+        p = Path(raw)
+        if p.exists() and p.is_file():
+            return FSInputFile(str(p))
+    except Exception:
+        # Any filesystem/path issues -> fall back to treating as file_id
+        pass
+    return raw
 
 
 async def send_main_menu(target_event: Union[types.Message,
@@ -76,6 +100,7 @@ async def send_main_menu(target_event: Union[types.Message,
     text = _(key="main_menu_greeting", user_name=user_full_name)
     reply_markup = get_main_menu_inline_keyboard(current_lang, i18n, settings,
                                                  show_trial_button_in_menu)
+    logo_value = _resolve_logo_input(getattr(settings, "MAIN_MENU_LOGO", None))
 
     target_message_obj: Optional[types.Message] = None
     if isinstance(target_event, types.Message):
@@ -94,10 +119,27 @@ async def send_main_menu(target_event: Union[types.Message,
         return
 
     try:
-        if is_edit:
-            await target_message_obj.edit_text(text, reply_markup=reply_markup)
+        if logo_value:
+            # Prefer a photo-based menu when logo is configured.
+            if is_edit and getattr(target_message_obj, "photo", None):
+                # It's already a photo message -> update caption/markup.
+                await target_message_obj.edit_caption(caption=text, reply_markup=reply_markup)
+            else:
+                # Can't convert text->photo in-place; send a new message (and try to delete the old bot message in edit flows).
+                if is_edit:
+                    try:
+                        await target_message_obj.delete()
+                    except Exception:
+                        pass
+                await target_message_obj.answer_photo(photo=logo_value, caption=text, reply_markup=reply_markup)
         else:
-            await target_message_obj.answer(text, reply_markup=reply_markup)
+            # Text-only menu (default behavior). If we are editing a photo message, edit caption.
+            if is_edit and getattr(target_message_obj, "photo", None):
+                await target_message_obj.edit_caption(caption=text, reply_markup=reply_markup)
+            elif is_edit:
+                await target_message_obj.edit_text(text, reply_markup=reply_markup)
+            else:
+                await target_message_obj.answer(text, reply_markup=reply_markup)
 
         if isinstance(target_event, types.CallbackQuery):
             try:
