@@ -53,6 +53,7 @@ async def prompt_promo_code_input(callback: types.CallbackQuery,
         reply_markup=get_back_to_main_menu_markup(current_lang, i18n),
         settings=settings,
         is_edit=True,
+        parse_mode="HTML",
     )
 
     await state.set_state(UserPromoStates.waiting_for_promo_code)

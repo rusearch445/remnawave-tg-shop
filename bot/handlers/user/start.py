@@ -84,6 +84,7 @@ async def send_main_menu(target_event: Union[types.Message,
         reply_markup=reply_markup,
         settings=settings,
         is_edit=is_edit,
+        parse_mode="HTML",
     )
 
 
@@ -559,6 +560,7 @@ async def language_command_handler(
         reply_markup=reply_markup,
         settings=settings,
         is_edit=is_edit,
+        parse_mode="HTML",
     )
 
 

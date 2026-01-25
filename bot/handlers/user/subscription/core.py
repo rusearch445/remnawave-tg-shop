@@ -89,6 +89,7 @@ async def display_subscription_options(event: Union[types.Message, types.Callbac
         reply_markup=reply_markup,
         settings=settings,
         is_edit=is_edit,
+        parse_mode="HTML",
     )
 
 
@@ -421,6 +422,7 @@ async def my_devices_command_handler(
         reply_markup=markup,
         settings=settings,
         is_edit=is_edit,
+        parse_mode="HTML",
     )
 
 
