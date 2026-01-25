@@ -115,6 +115,7 @@ async def referral_command_handler(event: Union[types.Message,
         reply_markup=reply_markup_val,
         settings=settings,
         is_edit=is_edit,
+        parse_mode="HTML",
         disable_web_page_preview=True,
     )
 
