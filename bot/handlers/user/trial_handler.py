@@ -14,6 +14,7 @@ from bot.keyboards.inline.user_keyboards import (
     get_connect_and_main_keyboard,
 )
 from bot.utils.config_link import prepare_config_links
+from bot.utils.message_utils import send_or_edit_message
 from bot.middlewares.i18n import JsonI18n
 from .start import send_main_menu
 
@@ -158,25 +159,15 @@ async def request_trial_confirmation_handler(
         )
     )
 
-    try:
-        await callback.message.edit_text(
-            final_message_text_in_chat,
-            parse_mode="HTML",
-            reply_markup=reply_markup,
-            disable_web_page_preview=True,
-        )
-    except Exception as e_edit:
-        logging.warning(
-            f"Could not edit trial result message: {e_edit}. Sending new one."
-        )
-
-        if callback.message:
-            await callback.message.answer(
-                final_message_text_in_chat,
-                parse_mode="HTML",
-                reply_markup=reply_markup,
-                disable_web_page_preview=True,
-            )
+    await send_or_edit_message(
+        event=callback,
+        text=final_message_text_in_chat,
+        reply_markup=reply_markup,
+        settings=settings,
+        is_edit=True,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
 
 
 @router.callback_query(F.data == "trial_action:confirm_activate")
@@ -298,25 +289,15 @@ async def confirm_activate_trial_handler(
         )
     )
 
-    try:
-        await callback.message.edit_text(
-            final_message_text_in_chat,
-            parse_mode="HTML",
-            reply_markup=reply_markup,
-            disable_web_page_preview=True,
-        )
-    except Exception as e_edit:
-        logging.warning(
-            f"Could not edit trial result message: {e_edit}. Sending new one."
-        )
-
-        if callback.message:
-            await callback.message.answer(
-                final_message_text_in_chat,
-                parse_mode="HTML",
-                reply_markup=reply_markup,
-                disable_web_page_preview=True,
-            )
+    await send_or_edit_message(
+        event=callback,
+        text=final_message_text_in_chat,
+        reply_markup=reply_markup,
+        settings=settings,
+        is_edit=True,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
 
     if activation_result and activation_result.get("activated") and end_date_obj:
         notification_service = NotificationService(callback.bot, settings, i18n)

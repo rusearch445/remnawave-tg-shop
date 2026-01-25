@@ -16,6 +16,7 @@ from bot.keyboards.inline.user_keyboards import (
 )
 from datetime import datetime
 from bot.middlewares.i18n import JsonI18n
+from bot.utils.message_utils import send_or_edit_message
 
 from .start import send_main_menu
 
@@ -46,19 +47,14 @@ async def prompt_promo_code_input(callback: types.CallbackQuery,
                               show_alert=True)
         return
 
-    try:
-        await callback.message.edit_text(
-            text=_(key="promo_code_prompt"),
-            reply_markup=get_back_to_main_menu_markup(current_lang, i18n))
-    except Exception as e_edit:
-        logging.warning(
-            f"Failed to edit message for promo prompt: {e_edit}. Sending new one."
-        )
-        await callback.message.answer(
-            text=_(key="promo_code_prompt"),
-            reply_markup=get_back_to_main_menu_markup(current_lang, i18n))
+    await send_or_edit_message(
+        event=callback,
+        text=_(key="promo_code_prompt"),
+        reply_markup=get_back_to_main_menu_markup(current_lang, i18n),
+        settings=settings,
+        is_edit=True,
+    )
 
-    await callback.answer()
     await state.set_state(UserPromoStates.waiting_for_promo_code)
     logging.info(
         f"User {callback.from_user.id} entered state UserPromoStates.waiting_for_promo_code. "
@@ -160,9 +156,12 @@ async def process_promo_code_input(message: types.Message, state: FSMContext,
                 current_lang, i18n
             )
 
-    await message.answer(
-        response_to_user_text,
+    await send_or_edit_message(
+        event=message,
+        text=response_to_user_text,
         reply_markup=reply_markup,
+        settings=settings,
+        is_edit=False,
         parse_mode="HTML",
     )
     await state.clear()

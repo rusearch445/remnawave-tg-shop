@@ -1,6 +1,5 @@
 import logging
 import re
-from pathlib import Path
 from aiogram import Router, F, types, Bot
 from aiogram.utils.text_decorations import html_decoration as hd
 from aiogram.filters import CommandStart, Command
@@ -9,7 +8,6 @@ from typing import Optional, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramForbiddenError
-from aiogram.types import FSInputFile
 
 from db.dal import user_dal
 from db.models import User
@@ -26,30 +24,9 @@ from bot.services.promo_code_service import PromoCodeService
 from config.settings import Settings
 from bot.middlewares.i18n import JsonI18n
 from bot.utils.text_sanitizer import sanitize_username, sanitize_display_name
+from bot.utils.message_utils import send_or_edit_message
 
 router = Router(name="user_start_router")
-
-def _resolve_logo_input(logo: str):
-    """
-    Resolve MAIN_MENU_LOGO into a sendable photo value for aiogram.
-    Supports:
-      - local file path inside container -> FSInputFile
-      - http(s) URL -> str
-      - Telegram file_id -> str (fallback)
-    """
-    raw = (logo or "").strip()
-    if not raw:
-        return None
-    if raw.startswith("http://") or raw.startswith("https://"):
-        return raw
-    try:
-        p = Path(raw)
-        if p.exists() and p.is_file():
-            return FSInputFile(str(p))
-    except Exception:
-        # Any filesystem/path issues -> fall back to treating as file_id
-        pass
-    return raw
 
 
 async def send_main_menu(target_event: Union[types.Message,
@@ -100,69 +77,14 @@ async def send_main_menu(target_event: Union[types.Message,
     text = _(key="main_menu_greeting", user_name=user_full_name)
     reply_markup = get_main_menu_inline_keyboard(current_lang, i18n, settings,
                                                  show_trial_button_in_menu)
-    logo_value = _resolve_logo_input(getattr(settings, "MAIN_MENU_LOGO", None))
 
-    target_message_obj: Optional[types.Message] = None
-    if isinstance(target_event, types.Message):
-        target_message_obj = target_event
-    elif isinstance(target_event,
-                    types.CallbackQuery) and target_event.message:
-        target_message_obj = target_event.message
-
-    if not target_message_obj:
-        logging.error(
-            f"send_main_menu: target_message_obj is None for event from user {user_id}."
-        )
-        if isinstance(target_event, types.CallbackQuery):
-            await target_event.answer(_("error_displaying_menu"),
-                                      show_alert=True)
-        return
-
-    try:
-        if logo_value:
-            # Prefer a photo-based menu when logo is configured.
-            if is_edit and getattr(target_message_obj, "photo", None):
-                # It's already a photo message -> update caption/markup.
-                await target_message_obj.edit_caption(caption=text, reply_markup=reply_markup)
-            else:
-                # Can't convert text->photo in-place; send a new message (and try to delete the old bot message in edit flows).
-                if is_edit:
-                    try:
-                        await target_message_obj.delete()
-                    except Exception:
-                        pass
-                await target_message_obj.answer_photo(photo=logo_value, caption=text, reply_markup=reply_markup)
-        else:
-            # Text-only menu (default behavior). If we are editing a photo message, edit caption.
-            if is_edit and getattr(target_message_obj, "photo", None):
-                await target_message_obj.edit_caption(caption=text, reply_markup=reply_markup)
-            elif is_edit:
-                await target_message_obj.edit_text(text, reply_markup=reply_markup)
-            else:
-                await target_message_obj.answer(text, reply_markup=reply_markup)
-
-        if isinstance(target_event, types.CallbackQuery):
-            try:
-                await target_event.answer()
-            except Exception:
-                pass
-    except Exception as e_send_edit:
-        logging.warning(
-            f"Failed to send/edit main menu (user: {user_id}, is_edit: {is_edit}): {type(e_send_edit).__name__} - {e_send_edit}."
-        )
-        if is_edit and target_message_obj:
-            try:
-                await target_message_obj.answer(text, reply_markup=reply_markup)
-            except Exception as e_send_new:
-                logging.error(
-                    f"Also failed to send new main menu message for user {user_id}: {e_send_new}"
-                )
-        if isinstance(target_event, types.CallbackQuery):
-            try:
-                await target_event.answer(
-                    _("error_occurred_try_again") if is_edit else None)
-            except Exception:
-                pass
+    await send_or_edit_message(
+        event=target_event,
+        text=text,
+        reply_markup=reply_markup,
+        settings=settings,
+        is_edit=is_edit,
+    )
 
 
 async def ensure_required_channel_subscription(
@@ -630,25 +552,14 @@ async def language_command_handler(
     text_to_send = _(key="choose_language")
     reply_markup = get_language_selection_keyboard(i18n, current_lang)
 
-    target_message_obj = event.message if isinstance(
-        event, types.CallbackQuery) else event
-    if not target_message_obj:
-        if isinstance(event, types.CallbackQuery):
-            await event.answer(_("error_occurred_try_again"), show_alert=True)
-        return
-
-    if isinstance(event, types.CallbackQuery):
-        if event.message:
-            try:
-                await event.message.edit_text(text_to_send,
-                                              reply_markup=reply_markup)
-            except Exception:
-                await target_message_obj.answer(text_to_send,
-                                                reply_markup=reply_markup)
-        await event.answer()
-    else:
-        await target_message_obj.answer(text_to_send,
-                                        reply_markup=reply_markup)
+    is_edit = isinstance(event, types.CallbackQuery)
+    await send_or_edit_message(
+        event=event,
+        text=text_to_send,
+        reply_markup=reply_markup,
+        settings=settings,
+        is_edit=is_edit,
+    )
 
 
 @router.callback_query(F.data.startswith("set_lang_"))

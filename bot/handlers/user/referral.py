@@ -9,6 +9,7 @@ from bot.services.referral_service import ReferralService
 
 from bot.keyboards.inline.user_keyboards import get_back_to_main_menu_markup
 from bot.middlewares.i18n import JsonI18n
+from bot.utils.message_utils import send_or_edit_message
 
 router = Router(name="user_referral_router")
 
@@ -107,23 +108,15 @@ async def referral_command_handler(event: Union[types.Message,
     from bot.keyboards.inline.user_keyboards import get_referral_link_keyboard
     reply_markup_val = get_referral_link_keyboard(current_lang, i18n)
 
-    if isinstance(event, types.Message):
-        await event.answer(text,
-                           reply_markup=reply_markup_val,
-                           disable_web_page_preview=True)
-    elif isinstance(event, types.CallbackQuery) and event.message:
-        try:
-            await event.message.edit_text(text,
-                                          reply_markup=reply_markup_val,
-                                          disable_web_page_preview=True)
-        except Exception as e_edit:
-            logging.warning(
-                f"Failed to edit message for referral info: {e_edit}. Sending new one."
-            )
-            await event.message.answer(text,
-                                       reply_markup=reply_markup_val,
-                                       disable_web_page_preview=True)
-        await event.answer()
+    is_edit = isinstance(event, types.CallbackQuery)
+    await send_or_edit_message(
+        event=event,
+        text=text,
+        reply_markup=reply_markup_val,
+        settings=settings,
+        is_edit=is_edit,
+        disable_web_page_preview=True,
+    )
 
 
 @router.callback_query(F.data.startswith("referral_action:"))
