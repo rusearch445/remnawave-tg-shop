@@ -141,6 +141,9 @@ async def admin_panel_actions_callback_handler(
         from . import payments as admin_payments_handlers
         await admin_payments_handlers.view_payments_handler(
             callback, i18n_data, settings, session)
+    elif action == "referral_stats":
+        await admin_stats_handlers.show_referral_statistics_handler(
+            callback, i18n_data, settings, session)
     elif action == "ads":
         from . import ads as admin_ads_handlers
         await admin_ads_handlers.show_ads_menu(callback, settings, i18n_data, session)
