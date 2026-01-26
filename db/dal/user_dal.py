@@ -324,6 +324,78 @@ async def get_user_ids_without_active_subscription(session: AsyncSession) -> Lis
     return result.scalars().all()
 
 
+async def get_referral_statistics(session: AsyncSession, limit: int = 20) -> List[Dict[str, Any]]:
+    """
+    Get referral statistics: who invited how many users, how many bought subscription,
+    how many have active subscription.
+    Returns list of dicts sorted by total referrals descending.
+    """
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    
+    # Get all users who have referrals
+    stmt = (
+        select(
+            User.user_id,
+            User.username,
+            User.first_name,
+            func.count(User.referrals).label('total_referrals')
+        )
+        .join(User.referrals, isouter=False)
+        .group_by(User.user_id, User.username, User.first_name)
+        .having(func.count(User.referrals) > 0)
+        .order_by(func.count(User.referrals).desc())
+        .limit(limit)
+    )
+    
+    result = await session.execute(stmt)
+    referrers = result.all()
+    
+    stats = []
+    for referrer in referrers:
+        referrer_id = referrer.user_id
+        
+        # Count referrals who made a successful payment
+        paid_stmt = (
+            select(func.count(func.distinct(User.user_id)))
+            .join(Payment, Payment.user_id == User.user_id)
+            .where(
+                and_(
+                    User.referred_by_id == referrer_id,
+                    Payment.status == "succeeded"
+                )
+            )
+        )
+        paid_result = await session.execute(paid_stmt)
+        paid_count = paid_result.scalar() or 0
+        
+        # Count referrals with active subscription
+        active_stmt = (
+            select(func.count(func.distinct(User.user_id)))
+            .join(Subscription, Subscription.user_id == User.user_id)
+            .where(
+                and_(
+                    User.referred_by_id == referrer_id,
+                    Subscription.is_active == True,
+                    Subscription.end_date > now
+                )
+            )
+        )
+        active_result = await session.execute(active_stmt)
+        active_count = active_result.scalar() or 0
+        
+        stats.append({
+            'user_id': referrer_id,
+            'username': referrer.username,
+            'first_name': referrer.first_name,
+            'total_referrals': referrer.total_referrals,
+            'paid_referrals': paid_count,
+            'active_referrals': active_count,
+        })
+    
+    return stats
+
+
 async def delete_user_and_relations(session: AsyncSession, user_id: int) -> bool:
     """Completely remove a user and all dependent records from the database.
 

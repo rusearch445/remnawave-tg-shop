@@ -10,10 +10,73 @@ from db.dal import user_dal, payment_dal, panel_sync_dal
 from db.models import Payment, PanelSyncStatus
 from bot.services.panel_api_service import PanelApiService
 
-from bot.keyboards.inline.admin_keyboards import get_back_to_admin_panel_keyboard
+from bot.keyboards.inline.admin_keyboards import (
+    get_back_to_admin_panel_keyboard,
+    get_stats_monitoring_keyboard,
+)
 from bot.middlewares.i18n import JsonI18n
 
 router = Router(name="admin_statistics_router")
+
+
+@router.callback_query(F.data == "admin_action:referral_stats")
+async def show_referral_statistics_handler(
+    callback: types.CallbackQuery,
+    i18n_data: dict,
+    settings: Settings,
+    session: AsyncSession
+):
+    """Show referral statistics - who invited how many users."""
+    current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
+    i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
+    if not i18n or not callback.message:
+        await callback.answer("Error displaying statistics.", show_alert=True)
+        return
+    _ = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs)
+
+    await callback.answer()
+
+    try:
+        referral_stats = await user_dal.get_referral_statistics(session, limit=20)
+    except Exception as e:
+        logging.error(f"Failed to get referral statistics: {e}", exc_info=True)
+        await callback.message.edit_text(
+            _("admin_referral_stats_error"),
+            reply_markup=get_stats_monitoring_keyboard(i18n, current_lang),
+            parse_mode="HTML"
+        )
+        return
+
+    if not referral_stats:
+        text = f"<b>{_('admin_referral_stats_header')}</b>\n\n{_('admin_referral_stats_no_data')}"
+    else:
+        text_parts = [f"<b>{_('admin_referral_stats_header')}</b>\n"]
+        
+        for idx, stat in enumerate(referral_stats, 1):
+            user_display = f"@{stat['username']}" if stat['username'] else stat['first_name'] or f"ID: {stat['user_id']}"
+            
+            text_parts.append(
+                f"{idx}. {user_display}\n"
+                f"   👥 {_('admin_referral_invited')}: <b>{stat['total_referrals']}</b>\n"
+                f"   💳 {_('admin_referral_paid')}: <b>{stat['paid_referrals']}</b>\n"
+                f"   ✅ {_('admin_referral_active')}: <b>{stat['active_referrals']}</b>\n"
+            )
+        
+        text = "\n".join(text_parts)
+
+    try:
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_stats_monitoring_keyboard(i18n, current_lang),
+            parse_mode="HTML"
+        )
+    except Exception as e_edit:
+        logging.error(f"Error editing referral stats message: {e_edit}", exc_info=True)
+        await callback.message.answer(
+            text,
+            reply_markup=get_stats_monitoring_keyboard(i18n, current_lang),
+            parse_mode="HTML"
+        )
 
 
 async def show_statistics_handler(callback: types.CallbackQuery,
