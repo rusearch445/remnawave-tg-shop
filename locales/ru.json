@@ -130,6 +130,8 @@
   "admin_referral_invited": "Приглашено",
   "admin_referral_paid": "Оплатили",
   "admin_referral_active": "Активных",
+  "admin_referral_total_referrers": "Всего рефереров",
+  "back_to_stats_monitoring_button": "⬅️ К статистике",
   "admin_payments_header": "💰 <b>Все платежи</b>",
   "admin_no_payments_found": "Платежи не найдены.",
   "admin_export_payments_csv": "📊 Экспорт CSV",

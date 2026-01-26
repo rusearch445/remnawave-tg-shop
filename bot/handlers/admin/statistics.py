@@ -13,20 +13,24 @@ from bot.services.panel_api_service import PanelApiService
 from bot.keyboards.inline.admin_keyboards import (
     get_back_to_admin_panel_keyboard,
     get_stats_monitoring_keyboard,
+    get_referral_stats_keyboard,
 )
 from bot.middlewares.i18n import JsonI18n
+import math
 
 router = Router(name="admin_statistics_router")
 
+REFERRAL_STATS_PAGE_SIZE = 10
 
-@router.callback_query(F.data == "admin_action:referral_stats")
-async def show_referral_statistics_handler(
+
+async def _show_referral_stats_page(
     callback: types.CallbackQuery,
     i18n_data: dict,
     settings: Settings,
-    session: AsyncSession
+    session: AsyncSession,
+    page: int = 0
 ):
-    """Show referral statistics - who invited how many users."""
+    """Show referral statistics with pagination."""
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
     if not i18n or not callback.message:
@@ -34,10 +38,14 @@ async def show_referral_statistics_handler(
         return
     _ = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs)
 
-    await callback.answer()
-
     try:
-        referral_stats = await user_dal.get_referral_statistics(session, limit=20)
+        offset = page * REFERRAL_STATS_PAGE_SIZE
+        referral_stats, total_count = await user_dal.get_referral_statistics(
+            session, 
+            limit=REFERRAL_STATS_PAGE_SIZE, 
+            offset=offset
+        )
+        total_pages = math.ceil(total_count / REFERRAL_STATS_PAGE_SIZE) if total_count > 0 else 1
     except Exception as e:
         logging.error(f"Failed to get referral statistics: {e}", exc_info=True)
         await callback.message.edit_text(
@@ -47,36 +55,70 @@ async def show_referral_statistics_handler(
         )
         return
 
-    if not referral_stats:
+    if not referral_stats and page == 0:
         text = f"<b>{_('admin_referral_stats_header')}</b>\n\n{_('admin_referral_stats_no_data')}"
+        keyboard = get_stats_monitoring_keyboard(i18n, current_lang)
     else:
-        text_parts = [f"<b>{_('admin_referral_stats_header')}</b>\n"]
+        text_parts = [
+            f"<b>{_('admin_referral_stats_header')}</b>",
+            f"📊 {_('admin_referral_total_referrers')}: <b>{total_count}</b>\n"
+        ]
         
-        for idx, stat in enumerate(referral_stats, 1):
+        start_idx = offset + 1
+        for idx, stat in enumerate(referral_stats, start_idx):
             user_display = f"@{stat['username']}" if stat['username'] else stat['first_name'] or f"ID: {stat['user_id']}"
             
             text_parts.append(
                 f"{idx}. {user_display}\n"
                 f"   👥 {_('admin_referral_invited')}: <b>{stat['total_referrals']}</b>\n"
                 f"   💳 {_('admin_referral_paid')}: <b>{stat['paid_referrals']}</b>\n"
-                f"   ✅ {_('admin_referral_active')}: <b>{stat['active_referrals']}</b>\n"
+                f"   ✅ {_('admin_referral_active')}: <b>{stat['active_referrals']}</b>"
             )
         
         text = "\n".join(text_parts)
+        keyboard = get_referral_stats_keyboard(i18n, current_lang, page, total_pages)
 
     try:
         await callback.message.edit_text(
             text,
-            reply_markup=get_stats_monitoring_keyboard(i18n, current_lang),
+            reply_markup=keyboard,
             parse_mode="HTML"
         )
     except Exception as e_edit:
         logging.error(f"Error editing referral stats message: {e_edit}", exc_info=True)
         await callback.message.answer(
             text,
-            reply_markup=get_stats_monitoring_keyboard(i18n, current_lang),
+            reply_markup=keyboard,
             parse_mode="HTML"
         )
+
+
+@router.callback_query(F.data == "admin_action:referral_stats")
+async def show_referral_statistics_handler(
+    callback: types.CallbackQuery,
+    i18n_data: dict,
+    settings: Settings,
+    session: AsyncSession
+):
+    """Show referral statistics - first page."""
+    await callback.answer()
+    await _show_referral_stats_page(callback, i18n_data, settings, session, page=0)
+
+
+@router.callback_query(F.data.startswith("admin_referral_stats:"))
+async def show_referral_statistics_page_handler(
+    callback: types.CallbackQuery,
+    i18n_data: dict,
+    settings: Settings,
+    session: AsyncSession
+):
+    """Show referral statistics - specific page."""
+    await callback.answer()
+    try:
+        page = int(callback.data.split(":")[1])
+    except (IndexError, ValueError):
+        page = 0
+    await _show_referral_stats_page(callback, i18n_data, settings, session, page=page)
 
 
 async def show_statistics_handler(callback: types.CallbackQuery,

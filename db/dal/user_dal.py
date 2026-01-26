@@ -324,27 +324,53 @@ async def get_user_ids_without_active_subscription(session: AsyncSession) -> Lis
     return result.scalars().all()
 
 
-async def get_referral_statistics(session: AsyncSession, limit: int = 20) -> List[Dict[str, Any]]:
+async def get_referral_statistics(
+    session: AsyncSession, 
+    limit: int = 10, 
+    offset: int = 0
+) -> Tuple[List[Dict[str, Any]], int]:
     """
     Get referral statistics: who invited how many users, how many bought subscription,
     how many have active subscription.
-    Returns list of dicts sorted by total referrals descending.
+    Returns tuple of (list of dicts sorted by total referrals descending, total count).
     """
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
     
-    # Get all users who have referrals
+    # First, get total count of users with referrals
+    count_stmt = (
+        select(func.count(func.distinct(User.user_id)))
+        .where(User.user_id.in_(
+            select(User.referred_by_id)
+            .where(User.referred_by_id.isnot(None))
+            .distinct()
+        ))
+    )
+    count_result = await session.execute(count_stmt)
+    total_count = count_result.scalar() or 0
+    
+    # Get users who have referrals with pagination
+    # Using a subquery to count referrals
+    referral_count_subq = (
+        select(
+            User.referred_by_id.label('referrer_id'),
+            func.count(User.user_id).label('ref_count')
+        )
+        .where(User.referred_by_id.isnot(None))
+        .group_by(User.referred_by_id)
+        .subquery()
+    )
+    
     stmt = (
         select(
             User.user_id,
             User.username,
             User.first_name,
-            func.count(User.referrals).label('total_referrals')
+            referral_count_subq.c.ref_count.label('total_referrals')
         )
-        .join(User.referrals, isouter=False)
-        .group_by(User.user_id, User.username, User.first_name)
-        .having(func.count(User.referrals) > 0)
-        .order_by(func.count(User.referrals).desc())
+        .join(referral_count_subq, User.user_id == referral_count_subq.c.referrer_id)
+        .order_by(referral_count_subq.c.ref_count.desc())
+        .offset(offset)
         .limit(limit)
     )
     
@@ -393,7 +419,7 @@ async def get_referral_statistics(session: AsyncSession, limit: int = 20) -> Lis
             'active_referrals': active_count,
         })
     
-    return stats
+    return stats, total_count
 
 
 async def delete_user_and_relations(session: AsyncSession, user_id: int) -> bool:

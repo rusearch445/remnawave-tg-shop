@@ -130,6 +130,8 @@
   "admin_referral_invited": "Invited",
   "admin_referral_paid": "Paid",
   "admin_referral_active": "Active",
+  "admin_referral_total_referrers": "Total referrers",
+  "back_to_stats_monitoring_button": "⬅️ Back to stats",
   "admin_payments_header": "💰 <b>All Payments</b>",
   "admin_no_payments_found": "No payments found.",
   "admin_export_payments_csv": "📊 Export CSV",

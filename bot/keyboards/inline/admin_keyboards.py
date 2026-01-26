@@ -462,3 +462,48 @@ def get_back_to_admin_panel_keyboard(lang: str,
     builder.button(text=_(key="back_to_admin_panel_button"),
                    callback_data="admin_action:main")
     return builder.as_markup()
+
+
+def get_referral_stats_keyboard(
+    i18n_instance,
+    lang: str,
+    current_page: int,
+    total_pages: int,
+) -> InlineKeyboardMarkup:
+    """Keyboard for referral statistics with pagination."""
+    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+    builder = InlineKeyboardBuilder()
+    
+    # Pagination row
+    if total_pages > 1:
+        pagination_buttons = []
+        if current_page > 0:
+            pagination_buttons.append(
+                InlineKeyboardButton(
+                    text="⬅️ " + _("prev_page_button"),
+                    callback_data=f"admin_referral_stats:{current_page - 1}",
+                )
+            )
+        pagination_buttons.append(
+            InlineKeyboardButton(
+                text=f"{current_page + 1}/{total_pages}",
+                callback_data="referral_stats_page_display",
+            )
+        )
+        if current_page < total_pages - 1:
+            pagination_buttons.append(
+                InlineKeyboardButton(
+                    text=_("next_page_button") + " ➡️",
+                    callback_data=f"admin_referral_stats:{current_page + 1}",
+                )
+            )
+        if pagination_buttons:
+            builder.row(*pagination_buttons)
+    
+    # Back button
+    builder.button(
+        text=_("back_to_stats_monitoring_button"),
+        callback_data="admin_section:stats_monitoring"
+    )
+    builder.adjust(1)
+    return builder.as_markup()
