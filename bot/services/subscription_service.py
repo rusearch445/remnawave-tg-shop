@@ -447,6 +447,8 @@ class SubscriptionService:
         traffic_info = panel_user_data.get("userTraffic") or {}
         current_limit = panel_user_data.get("trafficLimitBytes")
         current_used = traffic_info.get("usedTrafficBytes")
+        if current_used is None:
+            current_used = panel_user_data.get("usedTrafficBytes")
 
         active_sub = await subscription_dal.get_active_subscription_by_user_id(
             session, user_id, panel_user_uuid
@@ -848,6 +850,8 @@ class SubscriptionService:
             panel_expire_at_str = panel_user_data.get("expireAt")
             traffic_stats = panel_user_data.get("userTraffic") or {}
             panel_traffic_used = traffic_stats.get("usedTrafficBytes")
+            if panel_traffic_used is None:
+                panel_traffic_used = panel_user_data.get("usedTrafficBytes")
             panel_traffic_limit = panel_user_data.get("trafficLimitBytes")
             panel_sub_uuid_from_panel = panel_user_data.get(
                 "subscriptionUuid"
@@ -907,6 +911,10 @@ class SubscriptionService:
         if hwid_limit is None:
             hwid_limit = self.settings.USER_HWID_DEVICE_LIMIT
 
+        _traffic_used = (panel_user_data.get("userTraffic") or {}).get("usedTrafficBytes")
+        if _traffic_used is None:
+            _traffic_used = panel_user_data.get("usedTrafficBytes")
+
         return {
             "user_id": panel_user_data.get("uuid"),
             "end_date": panel_end_date,
@@ -914,7 +922,7 @@ class SubscriptionService:
             "config_link": display_link,
             "connect_button_url": connect_button_url,
             "traffic_limit_bytes": panel_user_data.get("trafficLimitBytes"),
-            "traffic_used_bytes": (panel_user_data.get("userTraffic") or {}).get("usedTrafficBytes"),
+            "traffic_used_bytes": _traffic_used,
             "user_bot_username": db_user.username,
             "is_panel_data": True,
             "max_devices": hwid_limit,
