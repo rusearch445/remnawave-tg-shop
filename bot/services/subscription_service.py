@@ -524,6 +524,20 @@ class SubscriptionService:
         final_subscription_url = updated_panel_user.get("subscriptionUrl")
         final_panel_short_uuid = updated_panel_user.get("shortUuid", panel_short_uuid)
 
+        # --- Mark discount promo as consumed (traffic package) ---
+        try:
+            discount_info = await promo_code_dal.get_user_active_discount(session, user_id)
+            if discount_info:
+                await promo_code_dal.mark_discount_activation_used(
+                    session, discount_info["activation_id"], payment_db_id
+                )
+                logging.info(
+                    f"Discount promo activation {discount_info['activation_id']} marked as used "
+                    f"for user {user_id}, payment {payment_db_id} (traffic pkg)."
+                )
+        except Exception as e_disc:
+            logging.error(f"Failed to mark discount promo as used for user {user_id}: {e_disc}")
+
         return {
             "subscription_id": new_or_updated_sub.subscription_id,
             "end_date": final_end_date,
@@ -692,6 +706,20 @@ class SubscriptionService:
 
         final_subscription_url = updated_panel_user.get("subscriptionUrl")
         final_panel_short_uuid = updated_panel_user.get("shortUuid", panel_short_uuid)
+
+        # --- Mark discount promo as consumed (link activation to this payment) ---
+        try:
+            discount_info = await promo_code_dal.get_user_active_discount(session, user_id)
+            if discount_info:
+                await promo_code_dal.mark_discount_activation_used(
+                    session, discount_info["activation_id"], payment_db_id
+                )
+                logging.info(
+                    f"Discount promo activation {discount_info['activation_id']} marked as used "
+                    f"for user {user_id}, payment {payment_db_id}."
+                )
+        except Exception as e_disc:
+            logging.error(f"Failed to mark discount promo as used for user {user_id}: {e_disc}")
 
         return {
             "subscription_id": new_or_updated_sub.subscription_id,

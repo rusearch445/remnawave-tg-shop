@@ -267,7 +267,8 @@ class NotificationService:
         await self._send_to_log_channel(message, reply_markup=profile_keyboard)
     
     async def notify_promo_activation(self, user_id: int, promo_code: str, bonus_days: int,
-                                    username: Optional[str] = None):
+                                    username: Optional[str] = None,
+                                    discount_percent: int = 0):
         """Send notification about promo code activation"""
         if not self.settings.LOG_PROMO_ACTIVATIONS:
             return
@@ -280,13 +281,22 @@ class NotificationService:
             username=username,
         )
         
-        message = _(
-            "log_promo_activation",
-            user_display=user_display,
-            promo_code=promo_code,
-            bonus_days=bonus_days,
-            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        )
+        if discount_percent > 0:
+            message = _(
+                "log_promo_activation_discount",
+                user_display=user_display,
+                promo_code=promo_code,
+                discount_percent=discount_percent,
+                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+        else:
+            message = _(
+                "log_promo_activation",
+                user_display=user_display,
+                promo_code=promo_code,
+                bonus_days=bonus_days,
+                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
         
         # Send to log channel
         profile_keyboard = self._build_profile_keyboard(_, user_id)

@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Optional
 
 from aiogram import F, Router, types
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.keyboards.inline.user_keyboards import get_payment_method_keyboard
 from bot.middlewares.i18n import JsonI18n
 from config.settings import Settings
+from db.dal import promo_code_dal
 
 router = Router(name="user_subscription_payments_selection_router")
 
@@ -82,7 +84,28 @@ async def select_subscription_period_callback_handler(
                 pass
             return
 
-    text_content = get_text("choose_payment_method_traffic") if traffic_mode else get_text("choose_payment_method")
+    # --- Apply discount promo if active ---
+    discount_info = await promo_code_dal.get_user_active_discount(session, callback.from_user.id)
+    discount_percent = discount_info["discount_percent"] if discount_info else 0
+    original_price_rub = price_rub
+    original_stars_price = stars_price
+
+    if discount_percent > 0:
+        price_rub = round(price_rub * (100 - discount_percent) / 100, 2)
+        if stars_price is not None:
+            stars_price = max(1, math.ceil(stars_price * (100 - discount_percent) / 100))
+
+    if discount_percent > 0:
+        text_content = get_text(
+            "choose_payment_method_discount",
+            discount_percent=discount_percent,
+            original_price=original_price_rub,
+            discounted_price=price_rub,
+            currency=currency_symbol_val,
+        )
+    else:
+        text_content = get_text("choose_payment_method_traffic") if traffic_mode else get_text("choose_payment_method")
+
     reply_markup = get_payment_method_keyboard(
         months,
         price_rub,

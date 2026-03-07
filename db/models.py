@@ -154,7 +154,8 @@ class PromoCode(Base):
 
     promo_code_id = Column(Integer, primary_key=True, autoincrement=True)
     code = Column(String, unique=True, nullable=False, index=True)
-    bonus_days = Column(Integer, nullable=False)
+    bonus_days = Column(Integer, nullable=False, default=0)
+    discount_percent = Column(Integer, nullable=False, default=0)
     max_activations = Column(Integer, nullable=False)
     current_activations = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)

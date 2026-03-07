@@ -495,5 +495,21 @@
   "admin_ads_delete_confirm": "Вы уверены, что хотите удалить кампанию #{id}? Это действие необратимо.",
   "admin_ads_deleted_success": "Кампания удалена.",
   "admin_ads_not_found": "Кампания не найдена.",
-  "free_kassa_order_full": "Заказ №{order_id} от {date}\n\n"
+  "free_kassa_order_full": "Заказ №{order_id} от {date}\n\n",
+
+  "admin_promo_step2_type": "🎟 <b>Создание промокода</b>\n\n<b>Шаг 2:</b> Тип промокода\n\nКод: <b>{code}</b>\n\nВыберите тип промокода:",
+  "admin_promo_type_bonus_days": "🎁 Бонусные дни",
+  "admin_promo_type_discount": "💰 Скидка на покупку",
+  "admin_promo_step2_discount_percent": "🎟 <b>Создание промокода</b>\n\n<b>Шаг 2:</b> Процент скидки\n\nКод: <b>{code}</b>\n\nВведите процент скидки (1-99):",
+  "admin_promo_invalid_discount_percent": "❌ Процент скидки должен быть от 1 до 99.",
+  "admin_promo_step3_max_activations_discount": "🎟 <b>Создание промокода</b>\n\n<b>Шаг 3:</b> Максимальные активации\n\nКод: <b>{code}</b>\nСкидка: <b>{discount_percent}%</b>\n\nВведите максимальное количество активаций (1-10000):",
+  "admin_promo_step4_validity_discount": "🎟 <b>Создание промокода</b>\n\n<b>Шаг 4:</b> Срок действия\n\nКод: <b>{code}</b>\nСкидка: <b>{discount_percent}%</b>\nМакс. активации: <b>{max_activations}</b>\n\nВыберите срок действия промокода:",
+  "admin_promo_created_success_discount": "✅ Промокод <code>{code}</code> успешно создан!\nСкидка: {discount_percent}%\nМакс. активаций: {max_activations}\nДействителен: {valid_until_str}",
+  "admin_promo_card_discount": "💰 Скидка: <b>{percent}%</b>",
+  "admin_promo_edit_discount_percent": "💰 Процент скидки",
+  "admin_promo_prompt_discount_percent": "Введите новый процент скидки (0-99, 0 для удаления):",
+  "promo_code_discount_applied_success": "✅ Промокод на скидку активирован!\n\n💰 Вам предоставлена скидка <b>{discount_percent}%</b> на следующую покупку.\n\nПерейдите в раздел покупки подписки, чтобы воспользоваться скидкой.",
+  "choose_payment_method_discount": "💰 <b>У вас активна скидка {discount_percent}%!</b>\n\nЦена без скидки: <s>{original_price} {currency}</s>\nЦена со скидкой: <b>{discounted_price} {currency}</b>\n\nВыберите способ оплаты:",
+  "log_promo_activation_discount": "💰 <b>Активирован промокод на скидку</b>\n\n👤 Пользователь: {user_display}\n🏷 Код: <code>{promo_code}</code>\n🎯 Скидка: <b>{discount_percent}%</b>\n🕐 Время: {timestamp}",
+  "admin_promo_invalid_number": "❌ Введите корректное число."
 }

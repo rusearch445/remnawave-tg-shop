@@ -47,9 +47,15 @@ async def get_promo_detail_text_and_keyboard(promo_id: int, session: AsyncSessio
 
     created = promo.created_at.strftime("%d.%m.%Y %H:%M") if promo.created_at else "N/A"
 
+    discount_pct = getattr(promo, "discount_percent", 0) or 0
+    if discount_pct > 0:
+        type_line = _("admin_promo_card_discount", percent=discount_pct)
+    else:
+        type_line = _("admin_promo_card_bonus_days", days=promo.bonus_days)
+
     text = "\n".join([
         _("admin_promo_card_title", code=promo.code),
-        _("admin_promo_card_bonus_days", days=promo.bonus_days),
+        type_line,
         _("admin_promo_card_activations", current=promo.current_activations, max=promo.max_activations),
         _("admin_promo_card_validity", validity=validity),
         _("admin_promo_card_status", status=status),
@@ -76,12 +82,17 @@ async def view_promo_codes_handler(callback: types.CallbackQuery, i18n_data: dic
     _ = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs)
 
     promo_models = await promo_code_dal.get_all_active_promo_codes(session, limit=20, offset=0)
-    text = f"{_('admin_active_promos_list_header')}\n\n{_('admin_no_active_promos')}" if not promo_models else "\n".join(
-        [_("admin_active_promos_list_header"), ""] + [
-            f"{get_promo_status_emoji_and_text(p, i18n, current_lang)[0]} <code>{p.code}</code> | 🎁 {p.bonus_days}д | 📊 {p.current_activations}/{p.max_activations} | ⏰ {p.valid_until.strftime('%d.%m.%Y') if p.valid_until else _('admin_promo_valid_indefinitely')}"
-            for p in promo_models
-        ]
-    )
+    if not promo_models:
+        text = f"{_('admin_active_promos_list_header')}\n\n{_('admin_no_active_promos')}"
+    else:
+        lines = [_("admin_active_promos_list_header"), ""]
+        for p in promo_models:
+            emoji = get_promo_status_emoji_and_text(p, i18n, current_lang)[0]
+            dp = getattr(p, "discount_percent", 0) or 0
+            type_info = f"💰 -{dp}%" if dp > 0 else f"🎁 {p.bonus_days}д"
+            validity_str = p.valid_until.strftime('%d.%m.%Y') if p.valid_until else _('admin_promo_valid_indefinitely')
+            lines.append(f"{emoji} <code>{p.code}</code> | {type_info} | 📊 {p.current_activations}/{p.max_activations} | ⏰ {validity_str}")
+        text = "\n".join(lines)
     
     await callback.message.edit_text(text, reply_markup=get_back_to_admin_panel_keyboard(current_lang, i18n), parse_mode="HTML")
     await callback.answer()
@@ -301,6 +312,7 @@ async def promo_export_all_handler(callback: types.CallbackQuery, i18n_data: dic
         writer.writerow([
             i18n.gettext(export_lang, "admin_promo_csv_code"),
             i18n.gettext(export_lang, "admin_promo_csv_bonus_days"),
+            "Discount %",
             i18n.gettext(export_lang, "admin_promo_csv_max_activations"),
             i18n.gettext(export_lang, "admin_promo_csv_current_activations"),
             i18n.gettext(export_lang, "admin_promo_csv_status"),
@@ -318,6 +330,7 @@ async def promo_export_all_handler(callback: types.CallbackQuery, i18n_data: dic
             row = [
                 promo.code,
                 promo.bonus_days,
+                getattr(promo, "discount_percent", 0) or 0,
                 promo.max_activations,
                 promo.current_activations,
                 status_text,
@@ -377,6 +390,7 @@ async def promo_edit_select_handler(callback: types.CallbackQuery, i18n_data: di
     
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text=_("admin_promo_edit_bonus_days"), callback_data=f"promo_edit_field:bonus_days:{promo_id}"))
+    builder.row(InlineKeyboardButton(text=_("admin_promo_edit_discount_percent"), callback_data=f"promo_edit_field:discount_percent:{promo_id}"))
     builder.row(InlineKeyboardButton(text=_("admin_promo_edit_max_activations"), callback_data=f"promo_edit_field:max_activations:{promo_id}"))
     builder.row(InlineKeyboardButton(text=_("admin_promo_edit_validity"), callback_data=f"promo_edit_field:valid_until:{promo_id}"))
     builder.row(InlineKeyboardButton(text=_("admin_promo_back_to_detail_button"), callback_data=f"promo_detail:{promo_id}"))
@@ -397,6 +411,7 @@ async def promo_edit_field_handler(callback: types.CallbackQuery, state: FSMCont
     
     prompts = {
         "bonus_days": "admin_promo_prompt_bonus_days",
+        "discount_percent": "admin_promo_prompt_discount_percent",
         "max_activations": "admin_promo_prompt_max_activations",
         "valid_until": "admin_promo_prompt_validity_days"
     }
@@ -421,6 +436,12 @@ async def process_promo_edit_details(message: types.Message, state: FSMContext, 
         
         if field == "bonus_days":
             update_data["bonus_days"] = int(value)
+        elif field == "discount_percent":
+            pct = int(value)
+            if not (0 <= pct <= 99):
+                await message.answer(_("admin_promo_invalid_discount_percent"))
+                return
+            update_data["discount_percent"] = pct
         elif field == "max_activations":
             update_data["max_activations"] = int(value)
         elif field == "valid_until":

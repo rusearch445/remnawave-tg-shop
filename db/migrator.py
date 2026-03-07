@@ -112,6 +112,17 @@ def _migration_0003_normalize_referral_codes(connection: Connection) -> None:
         )
     )
 
+def _migration_0004_add_promo_discount_percent(connection: Connection) -> None:
+    inspector = inspect(connection)
+    columns: Set[str] = {col["name"] for col in inspector.get_columns("promo_codes")}
+    if "discount_percent" not in columns:
+        connection.execute(
+            text(
+                "ALTER TABLE promo_codes ADD COLUMN discount_percent INTEGER NOT NULL DEFAULT 0"
+            )
+        )
+
+
 MIGRATIONS: List[Migration] = [
     Migration(
         id="0001_add_channel_subscription_fields",
@@ -127,6 +138,11 @@ MIGRATIONS: List[Migration] = [
         id="0003_normalize_referral_codes",
         description="Normalize referral codes to uppercase for consistent lookups",
         upgrade=_migration_0003_normalize_referral_codes,
+    ),
+    Migration(
+        id="0004_add_promo_discount_percent",
+        description="Add discount_percent column to promo_codes for discount promo codes",
+        upgrade=_migration_0004_add_promo_discount_percent,
     ),
 ]
 

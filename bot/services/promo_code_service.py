@@ -46,6 +46,38 @@ class PromoCodeService:
             return False, _("promo_code_already_used_by_user",
                             code=code_input_upper)
 
+        discount_percent = getattr(promo_data, "discount_percent", 0) or 0
+
+        # --- Discount promo: store activation, don't extend subscription ---
+        if discount_percent > 0:
+            activation_recorded = await promo_code_dal.record_promo_activation(
+                session, promo_data.promo_code_id, user_id, payment_id=None)
+            promo_incremented = await promo_code_dal.increment_promo_code_usage(
+                session, promo_data.promo_code_id)
+
+            if activation_recorded and promo_incremented:
+                try:
+                    notification_service = NotificationService(self.bot, self.settings, self.i18n)
+                    user = await user_dal.get_user_by_id(session, user_id)
+                    await notification_service.notify_promo_activation(
+                        user_id=user_id,
+                        promo_code=code_input_upper,
+                        bonus_days=0,
+                        username=user.username if user else None,
+                        discount_percent=discount_percent,
+                    )
+                except Exception as e:
+                    logging.error(f"Failed to send promo activation notification: {e}")
+
+                # Return a special string marker so the handler knows it's a discount
+                return True, f"discount:{discount_percent}"
+            else:
+                logging.error(
+                    f"Failed to record activation or increment usage for discount promo {promo_data.code} by user {user_id}"
+                )
+                return False, _("error_applying_promo_bonus")
+
+        # --- Bonus-days promo (existing behaviour) ---
         bonus_days = promo_data.bonus_days
 
         new_end_date = await self.subscription_service.extend_active_subscription_days(

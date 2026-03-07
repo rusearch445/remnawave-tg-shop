@@ -144,6 +144,48 @@ async def get_user_activation_for_promo(
     return result.scalar_one_or_none()
 
 
+async def get_user_active_discount(session: AsyncSession, user_id: int) -> Optional[Dict[str, Any]]:
+    """Return the active (unused) discount promo for a user, if any.
+    
+    An 'active' discount means: the user activated a promo that has discount_percent > 0
+    and the activation's payment_id is NULL (not yet consumed by a purchase).
+    Returns dict with 'discount_percent' and 'activation_id', or None.
+    """
+    stmt = (
+        select(PromoCodeActivation, PromoCode.discount_percent)
+        .join(PromoCode, PromoCodeActivation.promo_code_id == PromoCode.promo_code_id)
+        .where(
+            PromoCodeActivation.user_id == user_id,
+            PromoCodeActivation.payment_id == None,
+            PromoCode.discount_percent > 0,
+        )
+        .order_by(PromoCodeActivation.activated_at.desc())
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    row = result.first()
+    if row:
+        activation, discount_percent = row
+        return {
+            "discount_percent": discount_percent,
+            "activation_id": activation.activation_id,
+            "promo_code_id": activation.promo_code_id,
+        }
+    return None
+
+
+async def mark_discount_activation_used(session: AsyncSession, activation_id: int, payment_id: int) -> bool:
+    """Mark a discount promo activation as consumed by setting its payment_id."""
+    stmt = (
+        update(PromoCodeActivation)
+        .where(PromoCodeActivation.activation_id == activation_id)
+        .values(payment_id=payment_id)
+    )
+    result = await session.execute(stmt)
+    await session.flush()
+    return result.rowcount > 0
+
+
 async def record_promo_activation(
         session: AsyncSession,
         promo_code_id: int,

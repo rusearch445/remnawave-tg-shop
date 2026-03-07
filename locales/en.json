@@ -495,5 +495,21 @@
   "admin_ads_delete_confirm": "Are you sure you want to delete campaign #{id}? This action is irreversible.",
   "admin_ads_deleted_success": "Campaign deleted.",
   "admin_ads_not_found": "Campaign not found.",
-  "free_kassa_order_full": "Order #{order_id} from {date}\n\n"
+  "free_kassa_order_full": "Order #{order_id} from {date}\n\n",
+
+  "admin_promo_step2_type": "🎟 <b>Create Promo Code</b>\n\n<b>Step 2:</b> Promo Type\n\nCode: <b>{code}</b>\n\nChoose promo code type:",
+  "admin_promo_type_bonus_days": "🎁 Bonus Days",
+  "admin_promo_type_discount": "💰 Purchase Discount",
+  "admin_promo_step2_discount_percent": "🎟 <b>Create Promo Code</b>\n\n<b>Step 2:</b> Discount Percent\n\nCode: <b>{code}</b>\n\nEnter discount percentage (1-99):",
+  "admin_promo_invalid_discount_percent": "❌ Discount percent must be between 1 and 99.",
+  "admin_promo_step3_max_activations_discount": "🎟 <b>Create Promo Code</b>\n\n<b>Step 3:</b> Max Activations\n\nCode: <b>{code}</b>\nDiscount: <b>{discount_percent}%</b>\n\nEnter the maximum number of activations (1-10000):",
+  "admin_promo_step4_validity_discount": "🎟 <b>Create Promo Code</b>\n\n<b>Step 4:</b> Validity Period\n\nCode: <b>{code}</b>\nDiscount: <b>{discount_percent}%</b>\nMax activations: <b>{max_activations}</b>\n\nChoose the validity period:",
+  "admin_promo_created_success_discount": "✅ Promo code <code>{code}</code> created successfully!\nDiscount: {discount_percent}%\nMax uses: {max_activations}\nValid until: {valid_until_str}",
+  "admin_promo_card_discount": "💰 Discount: <b>{percent}%</b>",
+  "admin_promo_edit_discount_percent": "💰 Discount Percent",
+  "admin_promo_prompt_discount_percent": "Enter new discount percentage (0-99, 0 to remove):",
+  "promo_code_discount_applied_success": "✅ Discount promo code activated!\n\n💰 You have received a <b>{discount_percent}%</b> discount on your next purchase.\n\nGo to the subscription purchase section to use your discount.",
+  "choose_payment_method_discount": "💰 <b>You have an active {discount_percent}% discount!</b>\n\nOriginal price: <s>{original_price} {currency}</s>\nDiscounted price: <b>{discounted_price} {currency}</b>\n\nChoose payment method:",
+  "log_promo_activation_discount": "💰 <b>Discount Promo Code Activated</b>\n\n👤 User: {user_display}\n🏷 Code: <code>{promo_code}</code>\n🎯 Discount: <b>{discount_percent}%</b>\n🕐 Time: {timestamp}",
+  "admin_promo_invalid_number": "❌ Please enter a valid number."
 }
