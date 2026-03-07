@@ -483,7 +483,7 @@ async def create_promo_code_final(callback_or_message,
         logging.info(f"Promo code '{data['promo_code']}' created with ID {created_promo.promo_code_id}")
         
         # Success message
-        valid_until_str = _("admin_promo_unlimited") if not data.get("validity_days") else f"{data['validity_days']} дней"
+        valid_until_str = _("admin_promo_unlimited") if not data.get("validity_days") else f"{data['validity_days']} {_('days_unit')}"
         promo_type = data.get("promo_type", "bonus_days")
         if promo_type == "discount":
             success_text = _(

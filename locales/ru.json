@@ -511,5 +511,8 @@
   "promo_code_discount_applied_success": "✅ Промокод на скидку активирован!\n\n💰 Вам предоставлена скидка <b>{discount_percent}%</b> на следующую покупку.\n\nПерейдите в раздел покупки подписки, чтобы воспользоваться скидкой.",
   "choose_payment_method_discount": "💰 <b>У вас активна скидка {discount_percent}%!</b>\n\nЦена без скидки: <s>{original_price} {currency}</s>\nЦена со скидкой: <b>{discounted_price} {currency}</b>\n\nВыберите способ оплаты:",
   "log_promo_activation_discount": "💰 <b>Активирован промокод на скидку</b>\n\n👤 Пользователь: {user_display}\n🏷 Код: <code>{promo_code}</code>\n🎯 Скидка: <b>{discount_percent}%</b>\n🕐 Время: {timestamp}",
-  "admin_promo_invalid_number": "❌ Введите корректное число."
+  "admin_promo_invalid_number": "❌ Введите корректное число.",
+  "days_unit": "дней",
+  "promos_unit": "промокодов",
+  "bonus_each_label": "каждый"
 }

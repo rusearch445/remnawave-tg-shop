@@ -511,5 +511,8 @@
   "promo_code_discount_applied_success": "✅ Discount promo code activated!\n\n💰 You have received a <b>{discount_percent}%</b> discount on your next purchase.\n\nGo to the subscription purchase section to use your discount.",
   "choose_payment_method_discount": "💰 <b>You have an active {discount_percent}% discount!</b>\n\nOriginal price: <s>{original_price} {currency}</s>\nDiscounted price: <b>{discounted_price} {currency}</b>\n\nChoose payment method:",
   "log_promo_activation_discount": "💰 <b>Discount Promo Code Activated</b>\n\n👤 User: {user_display}\n🏷 Code: <code>{promo_code}</code>\n🎯 Discount: <b>{discount_percent}%</b>\n🕐 Time: {timestamp}",
-  "admin_promo_invalid_number": "❌ Please enter a valid number."
+  "admin_promo_invalid_number": "❌ Please enter a valid number.",
+  "days_unit": "days",
+  "promos_unit": "promo codes",
+  "bonus_each_label": "each"
 }
