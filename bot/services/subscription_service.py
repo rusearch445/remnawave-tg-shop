@@ -862,9 +862,30 @@ class SubscriptionService:
         local_active_sub = await subscription_dal.get_active_subscription_by_user_id(
             session, user_id, panel_user_uuid
         )
-        panel_user_data = await self.panel_service.get_user_by_uuid(panel_user_uuid)
+        panel_user_data, is_api_error = await self.panel_service.get_user_by_uuid_safe(panel_user_uuid)
 
         if not panel_user_data:
+            if is_api_error and local_active_sub and local_active_sub.is_active:
+                # Panel API is temporarily unreachable — return local data
+                # instead of destroying the subscription link.
+                logging.warning(
+                    f"Panel API error for uuid {panel_user_uuid} (user {user_id}). "
+                    f"Returning local subscription data to avoid data loss."
+                )
+                return {
+                    "user_id": panel_user_uuid,
+                    "end_date": local_active_sub.end_date,
+                    "status_from_panel": local_active_sub.status_from_panel or "ACTIVE",
+                    "config_link": None,
+                    "connect_button_url": None,
+                    "traffic_limit_bytes": local_active_sub.traffic_limit_bytes,
+                    "traffic_used_bytes": local_active_sub.traffic_used_bytes,
+                    "user_bot_username": db_user.username,
+                    "is_panel_data": False,
+                    "max_devices": self.settings.USER_HWID_DEVICE_LIMIT,
+                }
+
+            # Panel definitively says user does not exist — safe to clear.
             logging.warning(
                 f"Panel user {panel_user_uuid} not found on panel for user {user_id}. Clearing local linkage."
             )

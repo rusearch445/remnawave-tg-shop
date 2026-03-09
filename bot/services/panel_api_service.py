@@ -2,7 +2,7 @@ import aiohttp
 import logging
 import json
 import re
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime, timedelta, timezone
 import asyncio
 from urllib.parse import urlencode
@@ -238,6 +238,37 @@ class PanelApiService:
             return full_response.get("response")
 
         return None
+
+    async def get_user_by_uuid_safe(
+            self,
+            user_uuid: str,
+            log_response: bool = True) -> Tuple[Optional[Dict[str, Any]], bool]:
+        """Return (user_data, is_api_error).
+
+        * ``user_data`` – panel user dict or ``None``.
+        * ``is_api_error`` – ``True`` when the panel was unreachable or
+          returned a server error (5xx / timeout / connection), ``False``
+          when the response was definitive (success **or** 404 not-found).
+        """
+        endpoint = f"/users/{user_uuid}"
+        full_response = await self._request("GET",
+                                            endpoint,
+                                            log_full_response=log_response)
+        if full_response and not full_response.get("error") and "response" in full_response:
+            return full_response.get("response"), False
+
+        # Distinguish between "user genuinely not found" (4xx) and "API error" (network / 5xx)
+        if full_response and full_response.get("error"):
+            status_code = full_response.get("status_code", 0)
+            # Negative codes = network / timeout / unexpected errors
+            # 5xx = server-side errors
+            if status_code < 0 or status_code >= 500:
+                return None, True
+            # 4xx (including 404) = definitive response from panel
+            return None, False
+
+        # No response at all
+        return None, True
 
     async def get_user(
         self,
