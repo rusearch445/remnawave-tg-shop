@@ -123,15 +123,6 @@ def _migration_0004_add_promo_discount_percent(connection: Connection) -> None:
         )
 
 
-def _migration_0005_add_subscription_url(connection: Connection) -> None:
-    inspector = inspect(connection)
-    columns: Set[str] = {col["name"] for col in inspector.get_columns("subscriptions")}
-    if "subscription_url" not in columns:
-        connection.execute(
-            text("ALTER TABLE subscriptions ADD COLUMN subscription_url VARCHAR")
-        )
-
-
 MIGRATIONS: List[Migration] = [
     Migration(
         id="0001_add_channel_subscription_fields",
@@ -152,11 +143,6 @@ MIGRATIONS: List[Migration] = [
         id="0004_add_promo_discount_percent",
         description="Add discount_percent column to promo_codes for discount promo codes",
         upgrade=_migration_0004_add_promo_discount_percent,
-    ),
-    Migration(
-        id="0005_add_subscription_url",
-        description="Cache subscription URL locally for fallback when panel API is unavailable",
-        upgrade=_migration_0005_add_subscription_url,
     ),
 ]
 

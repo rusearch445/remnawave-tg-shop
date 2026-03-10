@@ -872,19 +872,12 @@ class SubscriptionService:
                     f"Panel API error for uuid {panel_user_uuid} (user {user_id}). "
                     f"Returning local subscription data to avoid data loss."
                 )
-                # Use cached subscription_url from last successful sync
-                cached_display_link = None
-                cached_button_url = None
-                if local_active_sub.subscription_url:
-                    cached_display_link, cached_button_url = await prepare_config_links(
-                        self.settings, local_active_sub.subscription_url
-                    )
                 return {
                     "user_id": panel_user_uuid,
                     "end_date": local_active_sub.end_date,
                     "status_from_panel": local_active_sub.status_from_panel or "ACTIVE",
-                    "config_link": cached_display_link,
-                    "connect_button_url": cached_button_url,
+                    "config_link": None,
+                    "connect_button_url": None,
                     "traffic_limit_bytes": local_active_sub.traffic_limit_bytes,
                     "traffic_used_bytes": local_active_sub.traffic_used_bytes,
                     "user_bot_username": db_user.username,
@@ -950,11 +943,6 @@ class SubscriptionService:
             )
             if local_active_sub.is_active != is_active_based_on_panel:
                 update_payload_local["is_active"] = is_active_based_on_panel
-
-            # Cache subscription URL for fallback when panel API is unavailable
-            panel_sub_url = panel_user_data.get("subscriptionUrl")
-            if panel_sub_url and local_active_sub.subscription_url != panel_sub_url:
-                update_payload_local["subscription_url"] = panel_sub_url
 
             if update_payload_local:
                 await subscription_dal.update_subscription(
