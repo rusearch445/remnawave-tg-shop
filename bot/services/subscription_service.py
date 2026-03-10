@@ -137,6 +137,28 @@ class SubscriptionService:
                     ):
                         panel_user_obj_from_api = creation_response.get("response")
                         panel_user_created_or_linked_now = True
+                    elif creation_response and (
+                        creation_response.get("errorCode") == "A019"
+                        or (isinstance(creation_response.get("details"), dict)
+                            and creation_response["details"].get("errorCode") == "A019")
+                    ):
+                        logging.warning(
+                            f"Panel user '{panel_username_on_panel_standard}' already exists (A019) while re-creating for user {user_id}. Fetching existing."
+                        )
+                        fetched_list = await self.panel_service.get_users_by_filter(
+                            username=panel_username_on_panel_standard
+                        )
+                        if fetched_list and len(fetched_list) == 1:
+                            panel_user_obj_from_api = fetched_list[0]
+                        if not panel_user_obj_from_api:
+                            fetched_list = await self.panel_service.get_users_by_filter(
+                                telegram_id=user_id
+                            )
+                            if fetched_list and len(fetched_list) == 1:
+                                panel_user_obj_from_api = fetched_list[0]
+                        if not panel_user_obj_from_api:
+                            await self._notify_admin_panel_user_creation_failed(user_id)
+                            return None, None, None, False
                     else:
                         await self._notify_admin_panel_user_creation_failed(user_id)
                         return None, None, None, False
@@ -167,7 +189,11 @@ class SubscriptionService:
                     panel_user_obj_from_api = creation_response.get("response")
                     panel_user_created_or_linked_now = True
 
-                elif creation_response and creation_response.get("errorCode") == "A019":
+                elif creation_response and (
+                    creation_response.get("errorCode") == "A019"
+                    or (isinstance(creation_response.get("details"), dict)
+                        and creation_response["details"].get("errorCode") == "A019")
+                ):
                     logging.warning(
                         f"Panel user '{panel_username_on_panel_standard}' already exists (errorCode A019). Fetching by username."
                     )
@@ -178,6 +204,15 @@ class SubscriptionService:
                     )
                     if fetched_by_username_list and len(fetched_by_username_list) == 1:
                         panel_user_obj_from_api = fetched_by_username_list[0]
+                    # Also try fetching by telegram_id as fallback
+                    if not panel_user_obj_from_api:
+                        fetched_by_tg_id_list = (
+                            await self.panel_service.get_users_by_filter(
+                                telegram_id=user_id
+                            )
+                        )
+                        if fetched_by_tg_id_list and len(fetched_by_tg_id_list) == 1:
+                            panel_user_obj_from_api = fetched_by_tg_id_list[0]
 
                 if not panel_user_obj_from_api:
                     logging.error(

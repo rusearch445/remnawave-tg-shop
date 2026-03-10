@@ -59,6 +59,9 @@ class PanelApiService:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
+    _MAX_RETRIES = 3
+    _RETRY_BACKOFF = (1.0, 2.0, 4.0)  # seconds between retries
+
     async def _request(self,
                        method: str,
                        endpoint: str,
@@ -72,9 +75,6 @@ class PanelApiService:
                 "status_code": 0,
                 "message": "Panel API URL not configured."
             }
-
-        aiohttp_session = await self._get_session()
-        headers = await self._prepare_headers()
 
         url_for_request = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
@@ -96,57 +96,80 @@ class PanelApiService:
                 log_prefix += f" | Payload: {payload_str[:300]}{'...' if len(payload_str) > 300 else ''}"
             except Exception:
                 log_prefix += f" | Payload: {str(json_payload_for_log)[:300]}..."
-        try:
-            async with aiohttp_session.request(method.upper(),
-                                               url_for_request,
-                                               headers=headers,
-                                               **kwargs) as response:
-                response_status = response.status
-                response_text = await response.text()
 
-                log_suffix = f"| Status: {response_status}"
+        last_error_result: Optional[Dict[str, Any]] = None
 
-                if log_full_response or not (200 <= response_status < 300):
-                    try:
-                        parsed_json_for_log = json.loads(response_text)
-                        pretty_response_text = json.dumps(parsed_json_for_log,
-                                                          indent=2,
-                                                          ensure_ascii=False)
-                        logging.info(
-                            f"{log_prefix} {log_suffix} | Full Response Body:\n{pretty_response_text}"
+        for attempt in range(self._MAX_RETRIES):
+            try:
+                aiohttp_session = await self._get_session()
+                headers = await self._prepare_headers()
+
+                async with aiohttp_session.request(method.upper(),
+                                                   url_for_request,
+                                                   headers=headers,
+                                                   **kwargs) as response:
+                    response_status = response.status
+                    response_text = await response.text()
+
+                    log_suffix = f"| Status: {response_status}"
+
+                    if log_full_response or not (200 <= response_status < 300):
+                        try:
+                            parsed_json_for_log = json.loads(response_text)
+                            pretty_response_text = json.dumps(parsed_json_for_log,
+                                                              indent=2,
+                                                              ensure_ascii=False)
+                            logging.info(
+                                f"{log_prefix} {log_suffix} | Full Response Body:\n{pretty_response_text}"
+                            )
+                        except json.JSONDecodeError:
+                            logging.info(
+                                f"{log_prefix} {log_suffix} | Full Response Text (not JSON):\n{response_text[:2000]}{'...' if len(response_text) > 2000 else ''}"
+                            )
+                    else:
+                        logging.debug(
+                            f"{log_prefix} {log_suffix} | OK. Response Body Preview: {response_text[:200]}{'...' if len(response_text) > 200 else ''}"
                         )
-                    except json.JSONDecodeError:
-                        logging.info(
-                            f"{log_prefix} {log_suffix} | Full Response Text (not JSON):\n{response_text[:2000]}{'...' if len(response_text) > 2000 else ''}"
-                        )
-                else:
-                    logging.debug(
-                        f"{log_prefix} {log_suffix} | OK. Response Body Preview: {response_text[:200]}{'...' if len(response_text) > 200 else ''}"
-                    )
 
-                if 200 <= response_status < 300:
-                    try:
-                        if 'application/json' in response.headers.get(
-                                'Content-Type', '').lower():
-                            data = json.loads(response_text)
-                            return data
-                        else:
+                    if 200 <= response_status < 300:
+                        try:
+                            if 'application/json' in response.headers.get(
+                                    'Content-Type', '').lower():
+                                data = json.loads(response_text)
+                                return data
+                            else:
+                                return {
+                                    "status": "success",
+                                    "code": response_status,
+                                    "data_text": response_text
+                                }
+                        except json.JSONDecodeError as e_json_ok:
+                            logging.error(
+                                f"{log_prefix} {log_suffix} | OK but JSON Parse Error. Error: {e_json_ok}. Body was logged above."
+                            )
                             return {
-                                "status": "success",
+                                "status": "success_parse_error",
                                 "code": response_status,
-                                "data_text": response_text
+                                "data_text": response_text,
+                                "parse_error": str(e_json_ok)
                             }
-                    except json.JSONDecodeError as e_json_ok:
-                        logging.error(
-                            f"{log_prefix} {log_suffix} | OK but JSON Parse Error. Error: {e_json_ok}. Body was logged above."
-                        )
-                        return {
-                            "status": "success_parse_error",
-                            "code": response_status,
-                            "data_text": response_text,
-                            "parse_error": str(e_json_ok)
+
+                    # Server errors (5xx) — retryable
+                    if response_status >= 500:
+                        last_error_result = {
+                            "error": True,
+                            "status_code": response_status,
+                            "details": {"message": f"Server error {response_status}", "raw_response_text": response_text}
                         }
-                else:
+                        if attempt < self._MAX_RETRIES - 1:
+                            delay = self._RETRY_BACKOFF[attempt] if attempt < len(self._RETRY_BACKOFF) else 4.0
+                            logging.warning(
+                                f"{log_prefix} {log_suffix} | Server error, retrying in {delay}s (attempt {attempt + 1}/{self._MAX_RETRIES})"
+                            )
+                            await asyncio.sleep(delay)
+                            continue
+
+                    # Client errors (4xx) — NOT retryable, return immediately
                     error_details = {
                         "message":
                         f"Request failed with status {response_status}",
@@ -165,37 +188,62 @@ class PanelApiService:
                         "details": error_details
                     }
 
-        except aiohttp.ClientConnectorError as e:
-            logging.error(
-                f"Panel API ClientConnectorError to {url_for_request}: {e}")
-            return {
-                "error": True,
-                "status_code": -1,
-                "message": f"Connection error: {str(e)}"
-            }
-        except aiohttp.ClientError as e:
-            logging.error(f"Panel API ClientError to {url_for_request}: {e}")
-            return {
-                "error": True,
-                "status_code": -2,
-                "message": f"Client error: {str(e)}"
-            }
-        except asyncio.TimeoutError:
-            logging.error(f"Panel API request to {url_for_request} timed out.")
-            return {
-                "error": True,
-                "status_code": -3,
-                "message": "Request timed out"
-            }
-        except Exception as e:
-            logging.error(
-                f"Unexpected Panel API request error to {url_for_request}: {e}",
-                exc_info=True)
-            return {
-                "error": True,
-                "status_code": -4,
-                "message": f"Unexpected error: {str(e)}"
-            }
+            except (aiohttp.ClientConnectorError, aiohttp.ServerDisconnectedError) as e:
+                last_error_result = {
+                    "error": True,
+                    "status_code": -1,
+                    "message": f"Connection error: {str(e)}"
+                }
+                if attempt < self._MAX_RETRIES - 1:
+                    delay = self._RETRY_BACKOFF[attempt] if attempt < len(self._RETRY_BACKOFF) else 4.0
+                    logging.warning(
+                        f"Panel API connection error to {url_for_request}: {e}. Retrying in {delay}s (attempt {attempt + 1}/{self._MAX_RETRIES})"
+                    )
+                    # Force new session on connection errors
+                    await self.close_session()
+                    await asyncio.sleep(delay)
+                    continue
+                logging.error(
+                    f"Panel API ClientConnectorError to {url_for_request}: {e} (all {self._MAX_RETRIES} attempts failed)")
+            except aiohttp.ClientError as e:
+                last_error_result = {
+                    "error": True,
+                    "status_code": -2,
+                    "message": f"Client error: {str(e)}"
+                }
+                if attempt < self._MAX_RETRIES - 1:
+                    delay = self._RETRY_BACKOFF[attempt] if attempt < len(self._RETRY_BACKOFF) else 4.0
+                    logging.warning(
+                        f"Panel API ClientError to {url_for_request}: {e}. Retrying in {delay}s (attempt {attempt + 1}/{self._MAX_RETRIES})"
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                logging.error(f"Panel API ClientError to {url_for_request}: {e} (all {self._MAX_RETRIES} attempts failed)")
+            except asyncio.TimeoutError:
+                last_error_result = {
+                    "error": True,
+                    "status_code": -3,
+                    "message": "Request timed out"
+                }
+                if attempt < self._MAX_RETRIES - 1:
+                    delay = self._RETRY_BACKOFF[attempt] if attempt < len(self._RETRY_BACKOFF) else 4.0
+                    logging.warning(
+                        f"Panel API request to {url_for_request} timed out. Retrying in {delay}s (attempt {attempt + 1}/{self._MAX_RETRIES})"
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                logging.error(f"Panel API request to {url_for_request} timed out (all {self._MAX_RETRIES} attempts failed)")
+            except Exception as e:
+                logging.error(
+                    f"Unexpected Panel API request error to {url_for_request}: {e}",
+                    exc_info=True)
+                return {
+                    "error": True,
+                    "status_code": -4,
+                    "message": f"Unexpected error: {str(e)}"
+                }
+
+        return last_error_result
 
     async def get_all_panel_users(
             self,
