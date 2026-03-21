@@ -254,6 +254,8 @@
   "subscription_24h_notification": "👋 Hi, {user_name}!\n\n⏳ Your VPN subscription expires in 1 day — {end_date}.\n\nPlease renew it using the button below.",
   "subscription_expired_notification": "👋 Hi, {user_name}!\n\n⛔ Your VPN subscription expired on {end_date}.\n\nPlease renew it using the button below.",
   "subscription_expired_yesterday_notification": "👋 Hi, {user_name}!\n\n⏳ Your VPN subscription expired yesterday ({end_date}).\n\nPlease renew it using the button below.",
+  "trial_expiring_1h_notification": "⚠️ {user_name}, your trial period expires in less than an hour!\n\nTo keep your VPN access, purchase a subscription now 👇",
+  "trial_buy_subscription_button": "🛒 Buy subscription",
   "autorenew_48h_charge_tomorrow_notice": "🔔 Reminder\n\nTomorrow an automatic charge will occur to renew your subscription. If you don't want auto-renew, disable it using the button below.",
   "autorenew_confirm_enable": "🔄 Enable auto-renew? An automatic charge will be attempted before your subscription ends.",
   "autorenew_confirm_disable": "🛑 Disable auto-renew? No further automatic charges will occur.",

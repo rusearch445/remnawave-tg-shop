@@ -38,6 +38,7 @@ from bot.services.crypto_pay_service import CryptoPayService, cryptopay_webhook_
 from bot.handlers.user import payment as user_payment_webhook_module
 from bot.handlers.admin.sync_admin import perform_sync
 from bot.utils.message_queue import init_queue_manager
+from bot.services.trial_expiry_task import trial_expiry_check_loop
 
 
 async def register_all_routers(dp: Dispatcher, settings: Settings):
@@ -295,7 +296,10 @@ async def run_bot(settings_param: Settings):
 
     main_tasks.append(asyncio.create_task(web_server_task(), name="AIOHTTPServerTask"))
 
-    # Recurring billing moved to panel webhook (24h before expiry). No periodic task needed here.
+    async def trial_notification_task():
+        await trial_expiry_check_loop(bot, settings_param, i18n_instance, local_async_session_factory)
+
+    main_tasks.append(asyncio.create_task(trial_notification_task(), name="TrialExpiryNotificationTask"))
 
     logging.info("Starting bot in Webhook mode with AIOHTTP server...")
     logging.info(f"Starting bot with main tasks: {[task.get_name() for task in main_tasks]}")

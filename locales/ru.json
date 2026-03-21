@@ -183,6 +183,8 @@
   "subscription_24h_notification": "👋 Привет, {user_name}!\n\n⏳ Ваша подписка на VPN истекает через 1 день — {end_date}.\n\nПродлите её по кнопке ниже.",
   "subscription_expired_notification": "👋 Привет, {user_name}!\n\n⛔ Срок вашей подписки на VPN истек ({end_date}).\n\nПродлите её по кнопке ниже.",
   "subscription_expired_yesterday_notification": "👋 Привет, {user_name}!\n\n⏳ Ваша подписка на VPN истекла сутки назад ({end_date}).\n\nПродлите её по кнопке ниже.",
+  "trial_expiring_1h_notification": "⚠️ {user_name}, ваш пробный период истекает менее чем через час!\n\nЧтобы не потерять доступ к VPN, оформите подписку прямо сейчас 👇",
+  "trial_buy_subscription_button": "🛒 Купить подписку",
   "autorenew_48h_charge_tomorrow_notice": "🔔 Напоминание\n\nЗавтра будет автоматическое списание за продление подписки. Если вы не хотите автопродление — отключите его кнопкой ниже.",
   "autorenew_confirm_enable": "🔄 Включить автопродление? Перед окончанием подписки будет выполняться автосписание.",
   "autorenew_confirm_disable": "🛑 Отключить автопродление? Автосписаний больше не будет.",

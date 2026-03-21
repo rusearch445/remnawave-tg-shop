@@ -323,6 +323,17 @@ def get_subscribe_only_markup(lang: str, i18n_instance) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def get_trial_expiry_buy_markup(lang: str, i18n_instance) -> InlineKeyboardMarkup:
+    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text=_(key="trial_buy_subscription_button"),
+        callback_data="main_action:subscribe",
+        style="success",
+    )
+    return builder.as_markup()
+
+
 def get_user_banned_keyboard(support_link: Optional[str], lang: str,
                              i18n_instance) -> Optional[InlineKeyboardMarkup]:
     if not support_link:

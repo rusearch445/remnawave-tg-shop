@@ -222,6 +222,34 @@ async def update_subscription_notification_time(
         {"last_notification_sent": notification_time})
 
 
+async def get_trial_subscriptions_expiring_in_hours(
+        session: AsyncSession, hours: float = 1.0) -> List[Subscription]:
+    now_utc = datetime.now(timezone.utc)
+    window_start = now_utc + timedelta(minutes=max(0, hours * 60 - 10))
+    window_end = now_utc + timedelta(minutes=hours * 60 + 10)
+
+    stmt = (
+        select(Subscription)
+        .join(Subscription.user)
+        .where(
+            Subscription.is_active == True,
+            Subscription.skip_notifications == False,
+            Subscription.status_from_panel == "ACTIVE",
+            Subscription.provider == None,
+            Subscription.end_date > window_start,
+            Subscription.end_date <= window_end,
+            or_(
+                Subscription.last_notification_sent == None,
+                Subscription.last_notification_sent < now_utc - timedelta(hours=2),
+            ),
+        )
+        .order_by(Subscription.end_date.asc())
+        .options(selectinload(Subscription.user))
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
 async def find_subscription_for_notification_update(
         session: AsyncSession, user_id: int,
         subscription_end_date_to_match: datetime) -> Optional[Subscription]:
