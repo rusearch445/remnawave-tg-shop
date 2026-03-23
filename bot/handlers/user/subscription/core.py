@@ -127,7 +127,8 @@ async def my_subscription_command_handler(
         text = get_text("subscription_not_active")
 
         buy_button = InlineKeyboardButton(
-            text=get_text("menu_subscribe_inline"), callback_data="main_action:subscribe"
+            text=get_text("menu_subscribe_inline"), callback_data="main_action:subscribe",
+            icon_custom_emoji_id="5911418533232778965",
         )
         back_markup = get_back_to_main_menu_markup(current_lang, i18n)
 
