@@ -20,20 +20,17 @@ def get_main_menu_inline_keyboard(
 
     builder.row(
         InlineKeyboardButton(text=_(key="menu_subscribe_inline"),
-                             callback_data="main_action:subscribe",
-                             icon_custom_emoji_id="5911418533232778965"))
+                             callback_data="main_action:subscribe"))
     builder.row(
         InlineKeyboardButton(
             text=_(key="menu_my_subscription_inline"),
             callback_data="main_action:my_subscription",
-            icon_custom_emoji_id="5909212436166089875",
         )
     )
 
     referral_button = InlineKeyboardButton(
         text=_(key="menu_referral_inline"),
-        callback_data="main_action:referral",
-        icon_custom_emoji_id="5911583054592810069")
+        callback_data="main_action:referral")
     promo_button = InlineKeyboardButton(
         text=_(key="menu_apply_promo_button"),
         callback_data="main_action:apply_promo")
@@ -41,8 +38,7 @@ def get_main_menu_inline_keyboard(
 
     language_button = InlineKeyboardButton(
         text=_(key="menu_language_settings_inline"),
-        callback_data="main_action:language",
-        icon_custom_emoji_id="5909006926275945468")
+        callback_data="main_action:language")
     status_button_list = []
     if settings.SERVER_STATUS_URL:
         status_button_list.append(
@@ -57,14 +53,12 @@ def get_main_menu_inline_keyboard(
     if settings.SUPPORT_LINK:
         builder.row(
             InlineKeyboardButton(text=_(key="menu_support_button"),
-                                 url=settings.SUPPORT_LINK,
-                                 icon_custom_emoji_id="5911337856567091150"))
+                                 url=settings.SUPPORT_LINK))
 
     if settings.TERMS_OF_SERVICE_URL:
         builder.row(
             InlineKeyboardButton(text=_(key="menu_terms_button"),
-                                 url=settings.TERMS_OF_SERVICE_URL,
-                                 icon_custom_emoji_id="5911500335179898268"))
+                                 url=settings.TERMS_OF_SERVICE_URL))
 
     return builder.as_markup()
 
@@ -299,13 +293,8 @@ def get_referral_link_keyboard(lang: str,
                                i18n_instance) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(
-            text=_(key="referral_share_message_button"),
-            callback_data="referral_action:share_message",
-            icon_custom_emoji_id="5911583054592810069",
-        )
-    )
+    builder.button(text=_(key="referral_share_message_button"),
+                   callback_data="referral_action:share_message")
     builder.button(text=_(key="back_to_main_menu_button"),
                    callback_data="main_action:back_to_main")
     builder.adjust(1)
@@ -329,13 +318,8 @@ def get_back_to_main_menu_markup(lang: str,
 def get_subscribe_only_markup(lang: str, i18n_instance) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(
-            text=_(key="menu_subscribe_inline"),
-            callback_data="main_action:subscribe",
-            icon_custom_emoji_id="5911418533232778965",
-        )
-    )
+    builder.button(text=_(key="menu_subscribe_inline"),
+                   callback_data="main_action:subscribe")
     return builder.as_markup()
 
 
@@ -356,13 +340,7 @@ def get_user_banned_keyboard(support_link: Optional[str], lang: str,
         return None
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(
-            text=_(key="menu_support_button"),
-            url=support_link,
-            icon_custom_emoji_id="5911337856567091150",
-        )
-    )
+    builder.button(text=_(key="menu_support_button"), url=support_link)
     return builder.as_markup()
 
 
@@ -551,8 +529,7 @@ def get_autorenew_cancel_keyboard(lang: str, i18n_instance) -> InlineKeyboardMar
         InlineKeyboardButton(text=_(key="autorenew_disable_button"), callback_data="autorenew:cancel")
     )
     builder.row(
-        InlineKeyboardButton(text=_(key="menu_my_subscription_inline"), callback_data="main_action:my_subscription",
-                             icon_custom_emoji_id="5909212436166089875")
+        InlineKeyboardButton(text=_(key="menu_my_subscription_inline"), callback_data="main_action:my_subscription")
     )
     return builder.as_markup()
 
