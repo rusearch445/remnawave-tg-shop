@@ -441,8 +441,8 @@ async def start_command_handler(message: types.Message,
                 await session.commit()
                 logging.info(f"Auto-applied promo code '{promo_code_to_apply}' for user {user_id}")
 
-                # Get updated subscription details
-                active = await subscription_service.get_active_subscription_details(session, user_id)
+                # Get updated subscription details (skip end_date sync to preserve promo bonus)
+                active = await subscription_service.get_active_subscription_details(session, user_id, skip_end_date_sync=True)
                 config_link_display = active.get("config_link") if active else None
                 connect_button_url = active.get("connect_button_url") if active else None
                 config_link_text = config_link_display or _("config_link_not_available")

@@ -140,7 +140,7 @@ async def process_promo_code_input(message: types.Message, state: FSMContext,
                 reply_markup = get_back_to_main_menu_markup(current_lang, i18n)
             else:
                 new_end_date = result if isinstance(result, datetime) else None
-                active = await subscription_service.get_active_subscription_details(session, user.id)
+                active = await subscription_service.get_active_subscription_details(session, user.id, skip_end_date_sync=True)
                 config_link_display = active.get("config_link") if active else None
                 connect_button_url = active.get("connect_button_url") if active else None
                 config_link_text = config_link_display or _("config_link_not_available")

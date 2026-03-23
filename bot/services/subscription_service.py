@@ -884,7 +884,8 @@ class SubscriptionService:
             return None
 
     async def get_active_subscription_details(
-        self, session: AsyncSession, user_id: int
+        self, session: AsyncSession, user_id: int,
+        skip_end_date_sync: bool = False,
     ) -> Optional[Dict[str, Any]]:
         db_user = await user_dal.get_user_by_id(session, user_id)
         if not db_user or not db_user.panel_user_uuid:
@@ -947,7 +948,7 @@ class SubscriptionService:
                 panel_expire_dt = datetime.fromisoformat(
                     panel_expire_at_str.replace("Z", "+00:00")
                 )
-                if local_active_sub.end_date.replace(
+                if not skip_end_date_sync and local_active_sub.end_date.replace(
                     microsecond=0
                 ) != panel_expire_dt.replace(microsecond=0):
                     update_payload_local["end_date"] = panel_expire_dt
