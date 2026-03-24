@@ -3,14 +3,17 @@ import logging
 from aiogram import Router, F, types, Bot
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from typing import Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
+import math
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from config.settings import Settings
 from bot.keyboards.inline.user_keyboards import (
     get_subscription_options_keyboard,
+    get_device_limit_keyboard,
     get_back_to_main_menu_markup,
     get_autorenew_confirm_keyboard,
 )
@@ -40,7 +43,13 @@ def _hwid_callback_token(hwid: Optional[str]) -> str:
     return hashlib.sha256(hwid_str.encode()).hexdigest()[:32]
 
 
-async def display_subscription_options(event: Union[types.Message, types.CallbackQuery], i18n_data: dict, settings: Settings, session: AsyncSession):
+async def display_subscription_options(
+    event: Union[types.Message, types.CallbackQuery],
+    i18n_data: dict,
+    settings: Settings,
+    session: AsyncSession,
+    devices: int = 1,
+):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
 
@@ -73,10 +82,24 @@ async def display_subscription_options(event: Union[types.Message, types.Callbac
     else:
         options = settings.subscription_options
 
+    show_dev_btn = (
+        settings.DEVICE_LIMIT_SELECTION_ENABLED
+        and not traffic_mode
+        and devices == 1
+    )
+    extra_dev_price = float(settings.EXTRA_DEVICE_PRICE_RUB) if settings.DEVICE_LIMIT_SELECTION_ENABLED else 0
+
     if options:
-        text_content = get_text("select_traffic_package") if traffic_mode else get_text("select_subscription_period")
+        if devices > 1 and not traffic_mode:
+            text_content = get_text("select_subscription_period_devices")
+        else:
+            text_content = get_text("select_traffic_package") if traffic_mode else get_text("select_subscription_period")
         reply_markup = get_subscription_options_keyboard(
-            options, currency_symbol_val, current_lang, i18n, traffic_mode=traffic_mode
+            options, currency_symbol_val, current_lang, i18n,
+            traffic_mode=traffic_mode,
+            devices=devices,
+            extra_device_price=extra_dev_price,
+            show_device_limits_button=show_dev_btn,
         )
     else:
         text_content = get_text("no_subscription_options_available")
@@ -96,6 +119,43 @@ async def display_subscription_options(event: Union[types.Message, types.Callbac
 @router.callback_query(F.data == "main_action:subscribe")
 async def reshow_subscription_options_callback(callback: types.CallbackQuery, i18n_data: dict, settings: Settings, session: AsyncSession):
     await display_subscription_options(callback, i18n_data, settings, session)
+
+
+@router.callback_query(F.data == "device_limits:show")
+async def show_device_limits_callback(callback: types.CallbackQuery, i18n_data: dict, settings: Settings):
+    current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
+    i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
+    get_text = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs) if i18n else key
+
+    markup = get_device_limit_keyboard(
+        current_lang, i18n,
+        max_devices=settings.MAX_DEVICE_LIMIT,
+        current_devices=1,
+    )
+    try:
+        await callback.message.edit_text(
+            get_text("device_limit_selection_header"),
+            reply_markup=markup,
+        )
+    except Exception:
+        await callback.message.answer(
+            get_text("device_limit_selection_header"),
+            reply_markup=markup,
+        )
+    try:
+        await callback.answer()
+    except Exception:
+        pass
+
+
+@router.callback_query(F.data.startswith("device_limits:select:"))
+async def select_device_limit_callback(callback: types.CallbackQuery, i18n_data: dict, settings: Settings, session: AsyncSession):
+    try:
+        devices = int(callback.data.split(":")[-1])
+    except (ValueError, IndexError):
+        devices = 1
+    devices = max(1, min(devices, settings.MAX_DEVICE_LIMIT))
+    await display_subscription_options(callback, i18n_data, settings, session, devices=devices)
 
 
 async def my_subscription_command_handler(
@@ -272,7 +332,22 @@ async def my_subscription_command_handler(
                 )
             ])
 
-        # 2) Auto-renew toggle (YooKassa only)
+        # 2) Buy extra devices button
+        if (
+            not traffic_mode
+            and settings.DEVICE_LIMIT_SELECTION_ENABLED
+            and days_left > 0
+        ):
+            current_dev_limit = active.get("max_devices") or 1
+            if isinstance(current_dev_limit, int) and current_dev_limit < settings.MAX_DEVICE_LIMIT:
+                prepend_rows.append([
+                    InlineKeyboardButton(
+                        text=get_text("buy_extra_devices_button"),
+                        callback_data="extra_devices:select",
+                    )
+                ])
+
+        # 3) Auto-renew toggle (YooKassa only)
         if not traffic_mode and local_sub and local_sub.provider == "yookassa" and settings.yookassa_autopayments_active:
             toggle_text = (
                 get_text("autorenew_disable_button") if local_sub.auto_renew_enabled else get_text("autorenew_enable_button")
@@ -284,7 +359,7 @@ async def my_subscription_command_handler(
                 )
             ])
 
-        # 3) Payment methods management (when autopayments enabled)
+        # 4) Payment methods management (when autopayments enabled)
         if not traffic_mode and settings.yookassa_autopayments_active:
             prepend_rows.append([
                 InlineKeyboardButton(text=get_text("payment_methods_manage_button"), callback_data="pm:manage")
@@ -658,3 +733,137 @@ async def connect_command_handler(
 ):
     logging.info(f"User {message.from_user.id} used /connect command.")
     await my_subscription_command_handler(message, i18n_data, settings, panel_service, subscription_service, session, bot)
+
+
+@router.callback_query(F.data == "extra_devices:select")
+async def extra_devices_select_callback(
+    callback: types.CallbackQuery,
+    i18n_data: dict,
+    settings: Settings,
+    subscription_service: SubscriptionService,
+    session: AsyncSession,
+    bot: Bot,
+):
+    current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
+    i18n: JsonI18n = i18n_data.get("i18n_instance")
+    get_text = lambda key, **kw: i18n.gettext(current_lang, key, **kw)
+
+    active = await subscription_service.get_active_subscription_details(session, callback.from_user.id)
+    if not active or not active.get("end_date"):
+        try:
+            await callback.answer(get_text("subscription_not_active"), show_alert=True)
+        except Exception:
+            pass
+        return
+
+    end_date = active["end_date"]
+    days_left = max(1, (end_date.date() - datetime.now().date()).days)
+    current_dev = active.get("max_devices") or 1
+    if not isinstance(current_dev, int):
+        current_dev = 1
+    max_dev = settings.MAX_DEVICE_LIMIT
+    can_add = max_dev - current_dev
+
+    if can_add <= 0:
+        try:
+            await callback.answer(get_text("error_try_again"), show_alert=True)
+        except Exception:
+            pass
+        return
+
+    price_per_device = math.ceil(days_left / 30) * settings.EXTRA_DEVICE_PRICE_RUB
+    currency = settings.DEFAULT_CURRENCY_SYMBOL
+
+    text = get_text("extra_devices_select_quantity", current=current_dev, days_left=days_left)
+
+    builder = InlineKeyboardBuilder()
+    for count in range(1, can_add + 1):
+        total_price = price_per_device * count
+        btn_text = get_text("extra_devices_option", count=count, price=int(total_price), currency_symbol=currency)
+        builder.row(
+            InlineKeyboardButton(
+                text=btn_text,
+                callback_data=f"extra_devices:buy:{count}:{int(total_price)}",
+            )
+        )
+    builder.row(
+        InlineKeyboardButton(
+            text=get_text("back_to_main_menu_button"),
+            callback_data="main_action:my_subscription",
+        )
+    )
+
+    try:
+        await callback.message.edit_text(text, reply_markup=builder.as_markup(), parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(text, reply_markup=builder.as_markup(), parse_mode="HTML")
+    try:
+        await callback.answer()
+    except Exception:
+        pass
+
+
+@router.callback_query(F.data.startswith("extra_devices:buy:"))
+async def extra_devices_buy_callback(
+    callback: types.CallbackQuery,
+    i18n_data: dict,
+    settings: Settings,
+    subscription_service: SubscriptionService,
+    session: AsyncSession,
+    bot: Bot,
+):
+    current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
+    i18n: JsonI18n = i18n_data.get("i18n_instance")
+    get_text = lambda key, **kw: i18n.gettext(current_lang, key, **kw)
+
+    try:
+        parts = callback.data.split(":")
+        extra_count = int(parts[2])
+        price = float(parts[3])
+    except (ValueError, IndexError):
+        try:
+            await callback.answer(get_text("error_try_again"), show_alert=True)
+        except Exception:
+            pass
+        return
+
+    active = await subscription_service.get_active_subscription_details(session, callback.from_user.id)
+    if not active:
+        try:
+            await callback.answer(get_text("subscription_not_active"), show_alert=True)
+        except Exception:
+            pass
+        return
+
+    current_dev = active.get("max_devices") or 1
+    if not isinstance(current_dev, int):
+        current_dev = 1
+    new_dev_limit = current_dev + extra_count
+
+    from bot.keyboards.inline.user_keyboards import get_payment_method_keyboard
+    reply_markup = get_payment_method_keyboard(
+        months=0,
+        price=price,
+        stars_price=None,
+        currency_symbol_val=settings.DEFAULT_CURRENCY_SYMBOL,
+        lang=current_lang,
+        i18n_instance=i18n,
+        settings=settings,
+        sale_mode=f"extra_devices:{new_dev_limit}",
+        devices=1,
+    )
+
+    try:
+        await callback.message.edit_text(
+            get_text("choose_payment_method"),
+            reply_markup=reply_markup,
+        )
+    except Exception:
+        await callback.message.answer(
+            get_text("choose_payment_method"),
+            reply_markup=reply_markup,
+        )
+    try:
+        await callback.answer()
+    except Exception:
+        pass

@@ -285,6 +285,7 @@ class FreeKassaService:
                 )
 
                 months = payment.subscription_duration_months or 1
+                device_limit = payment.device_limit or 1
                 sale_mode = "traffic" if self.settings.traffic_sale_mode else "subscription"
 
                 activation = await self.subscription_service.activate_subscription(
@@ -296,6 +297,7 @@ class FreeKassaService:
                     provider="freekassa",
                     sale_mode=sale_mode,
                     traffic_gb=months if sale_mode == "traffic" else None,
+                    device_limit=device_limit,
                 )
 
                 referral_bonus = None
