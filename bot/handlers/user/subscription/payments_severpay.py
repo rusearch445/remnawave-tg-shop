@@ -50,7 +50,6 @@ async def pay_severpay_callback_handler(
         months = float(parts[0])
         price_rub = float(parts[1])
         sale_mode = parts[2] if len(parts) > 2 else "subscription"
-        devices = int(parts[3]) if len(parts) > 3 else 1
     except (ValueError, IndexError):
         logging.error(f"Invalid pay_severpay data in callback: {callback.data}")
         try:
@@ -76,7 +75,6 @@ async def pay_severpay_callback_handler(
         "description": payment_description,
         "subscription_duration_months": int(months),
         "provider": "severpay",
-        "device_limit": devices,
     }
 
     try:

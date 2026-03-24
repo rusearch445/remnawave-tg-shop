@@ -27,8 +27,7 @@ class StarsService:
         self.referral_service = referral_service
 
     async def create_invoice(self, session: AsyncSession, user_id: int, months: int,
-                             stars_price: int, description: str, sale_mode: str = "subscription",
-                             device_limit: int = 1) -> Optional[int]:
+                             stars_price: int, description: str, sale_mode: str = "subscription") -> Optional[int]:
         payment_record_data = {
             "user_id": user_id,
             "amount": float(stars_price),
@@ -37,7 +36,6 @@ class StarsService:
             "description": description,
             "subscription_duration_months": int(months),
             "provider": "telegram_stars",
-            "device_limit": device_limit,
         }
         try:
             db_payment_record = await payment_dal.create_payment_record(
@@ -74,9 +72,6 @@ class StarsService:
                                          stars_amount: int,
                                          i18n_data: dict,
                                          sale_mode: str = "subscription") -> None:
-        payment = await payment_dal.get_payment_by_db_id(session, payment_db_id)
-        device_limit = (payment.device_limit or 1) if payment else 1
-
         try:
             await payment_dal.update_provider_payment_and_status(
                 session, payment_db_id,
@@ -99,7 +94,6 @@ class StarsService:
             provider="telegram_stars",
             sale_mode=sale_mode,
             traffic_gb=months if sale_mode == "traffic" else None,
-            device_limit=device_limit,
         )
         if not activation_details or not activation_details.get("end_date"):
             logging.error(

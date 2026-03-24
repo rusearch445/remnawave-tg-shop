@@ -217,7 +217,6 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
                     logging.exception("Failed to persist multi-card YooKassa method from webhook")
         except Exception:
             logging.exception("Failed to persist YooKassa payment method from webhook")
-        device_limit = (payment_record.device_limit or 1) if payment_record else 1
         months_for_activation = int(subscription_months) if sale_mode != "traffic" else 0
         activation_details = await subscription_service.activate_subscription(
             session,
@@ -229,7 +228,6 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
             provider="yookassa",
             sale_mode=sale_mode,
             traffic_gb=traffic_amount_gb if sale_mode == "traffic" else None,
-            device_limit=device_limit,
         )
 
         if not activation_details or not activation_details.get('end_date'):

@@ -90,16 +90,9 @@ def get_trial_confirmation_keyboard(lang: str,
     return builder.as_markup()
 
 
-def get_subscription_options_keyboard(
-    subscription_options: Dict[float, Optional[float]],
-    currency_symbol_val: str,
-    lang: str,
-    i18n_instance,
-    traffic_mode: bool = False,
-    devices: int = 1,
-    extra_device_price: float = 0,
-    show_device_limits_button: bool = False,
-) -> InlineKeyboardMarkup:
+def get_subscription_options_keyboard(subscription_options: Dict[
+    float, Optional[float]], currency_symbol_val: str, lang: str,
+                                      i18n_instance, traffic_mode: bool = False) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     def _format_gb(val: float) -> str:
@@ -116,103 +109,60 @@ def get_subscription_options_keyboard(
                     )
                     callback_data = f"subscribe_period:{_format_gb(months)}"
                 else:
-                    adjusted_price = price + (devices - 1) * extra_device_price
-                    if devices > 1:
-                        button_text = _(
-                            "subscribe_for_months_devices_button",
-                            months=int(months),
-                            devices=devices,
-                            price=int(adjusted_price) if adjusted_price == int(adjusted_price) else adjusted_price,
-                            currency_symbol=currency_symbol_val,
-                        )
-                    else:
-                        button_text = _("subscribe_for_months_button",
-                                        months=months,
-                                        price=price,
-                                        currency_symbol=currency_symbol_val)
-                    callback_data = f"subscribe_period:{int(months)}:{devices}"
+                    button_text = _("subscribe_for_months_button",
+                                    months=months,
+                                    price=price,
+                                    currency_symbol=currency_symbol_val)
+                    callback_data = f"subscribe_period:{months}"
                 builder.button(text=button_text,
                                callback_data=callback_data)
         builder.adjust(1)
-    if show_device_limits_button and not traffic_mode:
-        builder.row(
-            InlineKeyboardButton(
-                text=_(key="show_device_limits_button"),
-                callback_data="device_limits:show",
-            )
-        )
     builder.row(
         InlineKeyboardButton(text=_(key="back_to_main_menu_button"),
                              callback_data="main_action:back_to_main"))
     return builder.as_markup()
 
 
-def get_device_limit_keyboard(
-    lang: str,
-    i18n_instance,
-    max_devices: int = 3,
-    current_devices: int = 1,
-) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
-    builder = InlineKeyboardBuilder()
-    for n in range(1, max_devices + 1):
-        if n == current_devices:
-            text = _("device_limit_option_current", n=n)
-        else:
-            text = _("device_limit_option", n=n)
-        builder.row(
-            InlineKeyboardButton(text=text, callback_data=f"device_limits:select:{n}")
-        )
-    builder.row(
-        InlineKeyboardButton(text=_(key="back_to_main_menu_button"),
-                             callback_data="main_action:subscribe")
-    )
-    return builder.as_markup()
-
-
 def get_payment_method_keyboard(months: int, price: float,
                                 stars_price: Optional[int],
                                 currency_symbol_val: str, lang: str,
-                                i18n_instance, settings: Settings,
-                                sale_mode: str = "subscription",
-                                devices: int = 1) -> InlineKeyboardMarkup:
+                                i18n_instance, settings: Settings, sale_mode: str = "subscription") -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     def _format_value(val: float) -> str:
         return str(int(val)) if float(val).is_integer() else f"{val:g}"
     value_str = _format_value(months)
-    dev_suffix = f":{devices}" if devices > 1 else ""
     mode_suffix = f":{sale_mode}"
     for method in settings.payment_methods_order:
         if method == "severpay" and getattr(settings, "SEVERPAY_ENABLED", False):
             builder.button(
                 text=_("pay_with_severpay_button"),
-                callback_data=f"pay_severpay:{value_str}:{price}{mode_suffix}{dev_suffix}",
+                callback_data=f"pay_severpay:{value_str}:{price}{mode_suffix}",
             )
         elif method == "freekassa" and settings.FREEKASSA_ENABLED:
             builder.button(
                 text=_("pay_with_sbp_button"),
-                callback_data=f"pay_fk:{value_str}:{price}{mode_suffix}{dev_suffix}",
+                callback_data=f"pay_fk:{value_str}:{price}{mode_suffix}",
             )
         elif method == "platega" and settings.PLATEGA_ENABLED:
             builder.button(
                 text=_("pay_with_platega_button"),
-                callback_data=f"pay_platega:{value_str}:{price}{mode_suffix}{dev_suffix}",
+                callback_data=f"pay_platega:{value_str}:{price}{mode_suffix}",
             )
         elif method == "yookassa" and settings.YOOKASSA_ENABLED:
             builder.button(
                 text=_("pay_with_yookassa_button"),
-                callback_data=f"pay_yk:{value_str}:{price}{mode_suffix}{dev_suffix}",
+                callback_data=f"pay_yk:{value_str}:{price}{mode_suffix}",
             )
         elif method == "stars" and settings.STARS_ENABLED and stars_price is not None:
             builder.button(
                 text=_("pay_with_stars_button"),
-                callback_data=f"pay_stars:{value_str}:{stars_price}{mode_suffix}{dev_suffix}",
+                callback_data=f"pay_stars:{value_str}:{stars_price}{mode_suffix}",
             )
         elif method == "cryptopay" and settings.CRYPTOPAY_ENABLED:
             builder.button(
                 text=_("pay_with_cryptopay_button"),
-                callback_data=f"pay_crypto:{value_str}:{price}{mode_suffix}{dev_suffix}",
+                callback_data=f"pay_crypto:{value_str}:{price}{mode_suffix}",
             )
     builder.button(text=_(key="cancel_button"),
                    callback_data="main_action:subscribe")

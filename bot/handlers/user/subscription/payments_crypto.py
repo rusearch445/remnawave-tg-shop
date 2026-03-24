@@ -43,7 +43,6 @@ async def pay_crypto_callback_handler(
         months = float(parts[0])
         price_amount = float(parts[1])
         sale_mode = parts[2] if len(parts) > 2 else "subscription"
-        devices = int(parts[3]) if len(parts) > 3 else 1
     except (ValueError, IndexError):
         try:
             await callback.answer(get_text("error_try_again"), show_alert=True)
@@ -66,7 +65,6 @@ async def pay_crypto_callback_handler(
         amount=price_amount,
         description=payment_description,
         sale_mode=sale_mode,
-        device_limit=devices,
     )
 
     if invoice_url:

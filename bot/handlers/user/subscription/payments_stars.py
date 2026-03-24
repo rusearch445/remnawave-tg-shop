@@ -44,7 +44,6 @@ async def pay_stars_callback_handler(
         months = float(parts[0])
         stars_price = int(float(parts[1]))
         sale_mode = parts[2] if len(parts) > 2 else "subscription"
-        devices = int(parts[3]) if len(parts) > 3 else 1
     except (ValueError, IndexError):
         try:
             await callback.answer(get_text("error_try_again"), show_alert=True)
@@ -67,7 +66,6 @@ async def pay_stars_callback_handler(
         stars_price=stars_price,
         description=payment_description,
         sale_mode=sale_mode,
-        device_limit=devices,
     )
 
     if payment_db_id:

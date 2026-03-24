@@ -595,17 +595,7 @@ class SubscriptionService:
         provider: str = "yookassa",
         sale_mode: str = "subscription",
         traffic_gb: Optional[float] = None,
-        device_limit: Optional[int] = None,
     ) -> Optional[Dict[str, Any]]:
-
-        if sale_mode.startswith("extra_devices:"):
-            return await self._activate_extra_devices(
-                session=session,
-                user_id=user_id,
-                sale_mode=sale_mode,
-                payment_db_id=payment_db_id,
-                provider=provider,
-            )
 
         if sale_mode == "traffic" or getattr(self.settings, "traffic_sale_mode", False):
             target_gb = traffic_gb if traffic_gb is not None else float(months)
@@ -730,9 +720,6 @@ class SubscriptionService:
             status="ACTIVE",
             traffic_limit_bytes=self.settings.user_traffic_limit_bytes,
         )
-
-        if device_limit is not None and device_limit >= 1:
-            panel_update_payload["hwidDeviceLimit"] = device_limit
 
         # Add user description based on Telegram profile
         panel_update_payload["description"] = "\n".join(
@@ -1136,60 +1123,6 @@ class SubscriptionService:
             logging.warning(
                 f"Could not find subscription for user {user_id} ending at {subscription_end_date.isoformat()} to update notification time."
             )
-
-    async def _activate_extra_devices(
-        self,
-        session: AsyncSession,
-        user_id: int,
-        sale_mode: str,
-        payment_db_id: int,
-        provider: str = "unknown",
-    ) -> Optional[Dict[str, Any]]:
-        try:
-            new_device_limit = int(sale_mode.split(":")[1])
-        except (ValueError, IndexError):
-            logging.error("Invalid extra_devices sale_mode: %s", sale_mode)
-            return None
-
-        db_user = await user_dal.get_user_by_id(session, user_id)
-        if not db_user:
-            logging.error("User %d not found for extra devices activation", user_id)
-            return None
-
-        panel_user_uuid = db_user.panel_user_uuid
-        if not panel_user_uuid:
-            logging.error("No panel UUID for user %d", user_id)
-            return None
-
-        panel_update_payload = {
-            "uuid": panel_user_uuid,
-            "hwidDeviceLimit": new_device_limit,
-        }
-        updated = await self.panel_service.update_user_details_on_panel(
-            panel_user_uuid, panel_update_payload
-        )
-        if not updated or updated.get("error"):
-            logging.error(
-                "Failed to update device limit on panel for user %d: %s",
-                user_id, updated,
-            )
-            return None
-
-        logging.info(
-            "Extra devices activated for user %d: new limit = %d (payment %d)",
-            user_id, new_device_limit, payment_db_id,
-        )
-
-        active = await self.get_active_subscription_details(session, user_id)
-        return {
-            "subscription_id": active.get("subscription_id") if active else None,
-            "end_date": active.get("end_date") if active else None,
-            "is_active": True,
-            "panel_user_uuid": panel_user_uuid,
-            "panel_short_uuid": updated.get("shortUuid"),
-            "subscription_url": updated.get("subscriptionUrl"),
-            "applied_promo_bonus_days": 0,
-        }
 
     # Helpers
     def _build_panel_update_payload(
