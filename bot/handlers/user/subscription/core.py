@@ -352,7 +352,7 @@ async def my_devices_command_handler(
         return
 
     devices = await panel_service.get_user_devices(active.get("user_id")) if active else None
-    if not devices:
+    if devices is None:
         if isinstance(event, types.CallbackQuery):
             try:
                 await event.answer(get_text("no_devices_found"), show_alert=True)
@@ -386,7 +386,8 @@ async def my_devices_command_handler(
         for index, device in enumerate(devices_list_raw, start=1):
             device_model = device.get('deviceModel') or None
             platform = device.get('platform') or None
-            user_agent = device.get('userAgent') or None
+            raw_ua = device.get('userAgent') or None
+            user_agent = (raw_ua[:60] + "…") if raw_ua and len(raw_ua) > 60 else raw_ua
             os_version = device.get('osVersion') or None
             created_at = device.get('createdAt')
             hwid = device.get('hwid')
@@ -399,6 +400,8 @@ async def my_devices_command_handler(
             devices_list.append(device_details)
 
         text = get_text("my_devices_details", devices="\n\n".join(devices_list), current_devices=current_devices, max_devices=max_devices_display)
+        if len(text) > 4000:
+            text = text[:3990] + "…</b>"
 
     base_markup = get_back_to_main_menu_markup(current_lang, i18n, callback_data="main_action:my_subscription")
     kb = base_markup.inline_keyboard
