@@ -352,7 +352,7 @@ async def my_devices_command_handler(
         return
 
     devices = await panel_service.get_user_devices(active.get("user_id")) if active else None
-    if devices is None:
+    if not devices:
         if isinstance(event, types.CallbackQuery):
             try:
                 await event.answer(get_text("no_devices_found"), show_alert=True)
