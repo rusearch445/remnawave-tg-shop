@@ -133,6 +133,15 @@ def get_subscription_options_keyboard(
     def _format_gb(val: float) -> str:
         return str(int(val)) if float(val).is_integer() else f"{val:g}"
     if subscription_options:
+        if not traffic_mode:
+            per_month_prices = {}
+            for m, p in subscription_options.items():
+                if p is not None and int(m) >= 1:
+                    adj = p + (devices - 1) * extra_device_price * int(m)
+                    per_month_prices[m] = int(adj / int(m))
+            best_value_months = min(per_month_prices, key=per_month_prices.get) if len(per_month_prices) > 1 else None
+            one_month_ppm = per_month_prices.get(1) or per_month_prices.get(1.0)
+
         for months, price in subscription_options.items():
             if price is not None:
                 if traffic_mode:
@@ -145,22 +154,46 @@ def get_subscription_options_keyboard(
                     callback_data = f"subscribe_period:{_format_gb(months)}"
                 else:
                     adjusted_price = price + (devices - 1) * extra_device_price * int(months)
+                    price_display = int(adjusted_price) if adjusted_price == int(adjusted_price) else adjusted_price
+                    ppm = per_month_prices.get(months)
+                    is_best = (months == best_value_months and int(months) > 1)
+                    has_saving = (one_month_ppm is not None and ppm is not None
+                                 and ppm < one_month_ppm and int(months) > 1)
+
                     if devices > 1:
+                        if is_best:
+                            key = "subscribe_for_months_devices_best_button"
+                        elif has_saving:
+                            key = "subscribe_for_months_devices_saving_button"
+                        else:
+                            key = "subscribe_for_months_devices_button"
                         button_text = _(
-                            "subscribe_for_months_devices_button",
+                            key,
                             months=int(months),
                             devices=devices,
-                            price=int(adjusted_price) if adjusted_price == int(adjusted_price) else adjusted_price,
+                            price=price_display,
+                            per_month=ppm,
                             currency_symbol=currency_symbol_val,
                         )
                     else:
-                        button_text = _("subscribe_for_months_button",
-                                        months=months,
-                                        price=price,
-                                        currency_symbol=currency_symbol_val)
+                        if is_best:
+                            key = "subscribe_for_months_best_button"
+                        elif has_saving:
+                            key = "subscribe_for_months_saving_button"
+                        else:
+                            key = "subscribe_for_months_button"
+                        button_text = _(
+                            key,
+                            months=int(months),
+                            price=price_display,
+                            per_month=ppm,
+                            currency_symbol=currency_symbol_val,
+                        )
                     callback_data = f"subscribe_period:{int(months)}:{devices}"
-                builder.button(text=button_text,
-                               callback_data=callback_data)
+                btn_kwargs = dict(text=button_text, callback_data=callback_data)
+                if not traffic_mode and is_best:
+                    btn_kwargs["icon_custom_emoji_id"] = "5368324170671202286"
+                builder.button(**btn_kwargs)
         builder.adjust(1)
     if show_device_limits_button and not traffic_mode:
         builder.row(
