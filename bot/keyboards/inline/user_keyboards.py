@@ -144,7 +144,7 @@ def get_subscription_options_keyboard(
                     )
                     callback_data = f"subscribe_period:{_format_gb(months)}"
                 else:
-                    adjusted_price = price + (devices - 1) * extra_device_price
+                    adjusted_price = price + (devices - 1) * extra_device_price * int(months)
                     if devices > 1:
                         button_text = _(
                             "subscribe_for_months_devices_button",

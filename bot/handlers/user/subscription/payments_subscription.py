@@ -89,10 +89,10 @@ async def select_subscription_period_callback_handler(
 
     extra_dev_price = float(getattr(settings, "EXTRA_DEVICE_PRICE_RUB", 0))
     if devices > 1 and not traffic_mode:
-        price_rub = price_rub + (devices - 1) * extra_dev_price
+        price_rub = price_rub + (devices - 1) * extra_dev_price * int(months)
         extra_dev_stars = getattr(settings, "EXTRA_DEVICE_PRICE_STARS", None)
         if stars_price is not None and extra_dev_stars is not None:
-            stars_price = stars_price + (devices - 1) * int(extra_dev_stars)
+            stars_price = stars_price + (devices - 1) * int(extra_dev_stars) * int(months)
         elif devices > 1:
             stars_price = None
 
