@@ -1,5 +1,8 @@
 {
   "welcome": "Welcome, {user_name}!",
+  "welcome_new_user": "👋 <b>Welcome, {user_name}!</b>\n\nThis bot provides access to our VPN service.\n\n🆓 <b>Try it for free!</b>\nActivate a <b>{trial_days}-day</b> trial period and test the speed and stability.\n\n📲 <b>How to connect:</b>\n1. Tap the button below to get your key\n2. Copy the connection key\n3. Open a VPN app (Happ, V2RayNG, Streisand, etc.)\n4. Paste the key — done!\n\n👇 Tap to get started:",
+  "welcome_try_free_button": "🎁 Try for free",
+  "welcome_skip_button": "➡️ Go to menu",
   "channel_subscription_required": "To use the bot, join the channel and tap \"Check subscription\".",
   "channel_subscription_join_button": "Open channel",
   "channel_subscription_verify_button": "Check subscription",

@@ -5,6 +5,28 @@ from typing import Dict, Optional, List, Tuple
 from config.settings import Settings
 
 
+def get_welcome_new_user_keyboard(
+        lang: str,
+        i18n_instance,
+        settings: Settings) -> InlineKeyboardMarkup:
+    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text=_(key="welcome_try_free_button"),
+            callback_data="main_action:request_trial",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=_(key="welcome_skip_button"),
+            callback_data="main_action:back_to_main",
+        )
+    )
+    return builder.as_markup()
+
+
 def get_main_menu_inline_keyboard(
         lang: str,
         i18n_instance,

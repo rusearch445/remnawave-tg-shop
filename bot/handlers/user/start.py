@@ -16,6 +16,7 @@ from bot.keyboards.inline.user_keyboards import (
     get_main_menu_inline_keyboard,
     get_language_selection_keyboard,
     get_channel_subscription_keyboard,
+    get_welcome_new_user_keyboard,
 )
 from bot.services.subscription_service import SubscriptionService
 from bot.services.panel_api_service import PanelApiService
@@ -291,6 +292,7 @@ async def start_command_handler(message: types.Message,
     referred_by_user_id: Optional[int] = None
     promo_code_to_apply: Optional[str] = None
     ad_start_param: Optional[str] = None
+    is_new_user: bool = False
 
     if ref_match:
         raw_ref_value = ref_match.group(1)
@@ -347,6 +349,7 @@ async def start_command_handler(message: types.Message,
                     await message.answer(_("error_occurred_processing_request"))
                     return
 
+                is_new_user = True
                 logging.info(
                     f"New user {user_id} added to session. Referred by: {referred_by_user_id or 'N/A'}."
                 )
@@ -421,6 +424,20 @@ async def start_command_handler(message: types.Message,
     if not await ensure_required_channel_subscription(message, settings, i18n,
                                                       current_lang, session,
                                                       db_user):
+        return
+
+    # For new users with trials enabled: show dedicated welcome screen
+    if is_new_user and settings.TRIAL_ENABLED and not promo_code_to_apply:
+        welcome_text = _(
+            key="welcome_new_user",
+            user_name=hd.quote(user.full_name),
+            trial_days=settings.TRIAL_DURATION_DAYS,
+        )
+        await message.answer(
+            welcome_text,
+            reply_markup=get_welcome_new_user_keyboard(current_lang, i18n, settings),
+            parse_mode="HTML",
+        )
         return
 
     # Send welcome message if not disabled
