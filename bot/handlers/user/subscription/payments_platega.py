@@ -64,11 +64,12 @@ async def pay_platega_callback_handler(
 
     user_id = callback.from_user.id
     human_value = str(int(months)) if float(months).is_integer() else f"{months:g}"
-    payment_description = (
-        get_text("payment_description_traffic", traffic_gb=human_value)
-        if sale_mode == "traffic"
-        else get_text("payment_description_subscription", months=int(months))
-    )
+    if sale_mode == "extra_devices":
+        payment_description = get_text("payment_description_extra_devices", count=devices)
+    elif sale_mode == "traffic":
+        payment_description = get_text("payment_description_traffic", traffic_gb=human_value)
+    else:
+        payment_description = get_text("payment_description_subscription", months=int(months))
     currency_code = settings.DEFAULT_CURRENCY_SYMBOL or "RUB"
 
     payment_record_payload = {
@@ -147,18 +148,27 @@ async def pay_platega_callback_handler(
                     exc_info=True,
                 )
 
+            if sale_mode == "extra_devices":
+                link_msg_key = "payment_link_message_extra_devices"
+                link_msg_kwargs = {"count": devices}
+                back_cb = "main_action:my_subscription"
+            elif sale_mode == "traffic":
+                link_msg_key = "payment_link_message_traffic"
+                link_msg_kwargs = {"traffic_gb": human_value}
+                back_cb = f"subscribe_period:{human_value}"
+            else:
+                link_msg_key = "payment_link_message"
+                link_msg_kwargs = {"months": int(months), "traffic_gb": human_value}
+                back_cb = f"subscribe_period:{human_value}"
+
             try:
                 await callback.message.edit_text(
-                    get_text(
-                        key="payment_link_message_traffic" if sale_mode == "traffic" else "payment_link_message",
-                        months=int(months),
-                        traffic_gb=human_value,
-                    ),
+                    get_text(key=link_msg_key, **link_msg_kwargs),
                     reply_markup=get_payment_url_keyboard(
                         redirect_url,
                         current_lang,
                         i18n,
-                        back_callback=f"subscribe_period:{human_value}",
+                        back_callback=back_cb,
                         back_text_key="back_to_payment_methods_button",
                     ),
                     disable_web_page_preview=False,
@@ -167,16 +177,12 @@ async def pay_platega_callback_handler(
                 logging.warning(f"Platega: failed to display payment link ({e_edit}), sending new message.")
                 try:
                     await callback.message.answer(
-                        get_text(
-                            key="payment_link_message_traffic" if sale_mode == "traffic" else "payment_link_message",
-                            months=int(months),
-                            traffic_gb=human_value,
-                        ),
+                        get_text(key=link_msg_key, **link_msg_kwargs),
                         reply_markup=get_payment_url_keyboard(
                             redirect_url,
                             current_lang,
                             i18n,
-                            back_callback=f"subscribe_period:{human_value}",
+                            back_callback=back_cb,
                             back_text_key="back_to_payment_methods_button",
                         ),
                         disable_web_page_preview=False,

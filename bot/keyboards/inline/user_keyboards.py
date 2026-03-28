@@ -242,8 +242,9 @@ def get_payment_method_keyboard(months: int, price: float,
                 text=_("pay_with_cryptopay_button"),
                 callback_data=f"pay_crypto:{value_str}:{price}{mode_suffix}{dev_suffix}",
             )
+    back_cb = "main_action:my_subscription" if sale_mode.startswith("extra_devices") else "main_action:subscribe"
     builder.button(text=_(key="cancel_button"),
-                   callback_data="main_action:subscribe")
+                   callback_data=back_cb)
     builder.adjust(1)
     return builder.as_markup()
 

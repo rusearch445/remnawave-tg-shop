@@ -40,6 +40,8 @@
   "extra_devices_select_quantity": "Select how many devices to add:\n\nCurrent limit: <b>{current} dev.</b>\nDays left: <b>{days_left}</b>",
   "extra_devices_option": "+{count} dev. — {price} {currency_symbol} (until sub expires)",
   "extra_devices_activated_success": "✅ Extra devices added!\nYou now have more devices available.\n\nConnection key:\n<code>{config_link}</code>",
+  "payment_description_extra_devices": "Extra devices ({count} pcs.)",
+  "payment_link_message_extra_devices": "To pay for extra devices ({count} pcs.) tap the button below:",
   "buy_traffic_package_button": "{traffic_gb} GB - {price} {currency_symbol}",
   "choose_payment_method": "Choose payment method:",
   "choose_payment_method_traffic": "Choose how to pay for the traffic package:",

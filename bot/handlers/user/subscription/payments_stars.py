@@ -54,11 +54,12 @@ async def pay_stars_callback_handler(
 
     user_id = callback.from_user.id
     human_value = str(int(months)) if float(months).is_integer() else f"{months:g}"
-    payment_description = (
-        get_text("payment_description_traffic", traffic_gb=human_value)
-        if sale_mode == "traffic"
-        else get_text("payment_description_subscription", months=int(months))
-    )
+    if sale_mode == "extra_devices":
+        payment_description = get_text("payment_description_extra_devices", count=devices)
+    elif sale_mode == "traffic":
+        payment_description = get_text("payment_description_traffic", traffic_gb=human_value)
+    else:
+        payment_description = get_text("payment_description_subscription", months=int(months))
 
     payment_db_id = await stars_service.create_invoice(
         session=session,
@@ -71,17 +72,23 @@ async def pay_stars_callback_handler(
     )
 
     if payment_db_id:
+        if sale_mode == "extra_devices":
+            stars_info_msg = get_text("payment_invoice_sent_message")
+            stars_back_cb = "main_action:my_subscription"
+        elif sale_mode == "traffic":
+            stars_info_msg = get_text("payment_invoice_sent_message_traffic", traffic_gb=human_value)
+            stars_back_cb = f"subscribe_period:{human_value}"
+        else:
+            stars_info_msg = get_text("payment_invoice_sent_message", months=int(months))
+            stars_back_cb = f"subscribe_period:{human_value}"
+
         try:
             await callback.message.edit_text(
-                get_text(
-                    "payment_invoice_sent_message_traffic" if sale_mode == "traffic" else "payment_invoice_sent_message",
-                    months=int(months),
-                    traffic_gb=human_value,
-                ),
+                stars_info_msg,
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(
                         text=get_text("back_to_payment_methods_button"),
-                        callback_data=f"subscribe_period:{human_value}",
+                        callback_data=stars_back_cb,
                     )]
                 ]),
             )

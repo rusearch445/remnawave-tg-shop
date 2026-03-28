@@ -53,11 +53,12 @@ async def pay_crypto_callback_handler(
 
     user_id = callback.from_user.id
     human_value = str(int(months)) if float(months).is_integer() else f"{months:g}"
-    payment_description = (
-        get_text("payment_description_traffic", traffic_gb=human_value)
-        if sale_mode == "traffic"
-        else get_text("payment_description_subscription", months=int(months))
-    )
+    if sale_mode == "extra_devices":
+        payment_description = get_text("payment_description_extra_devices", count=devices)
+    elif sale_mode == "traffic":
+        payment_description = get_text("payment_description_traffic", traffic_gb=human_value)
+    else:
+        payment_description = get_text("payment_description_subscription", months=int(months))
 
     invoice_url = await cryptopay_service.create_invoice(
         session=session,
@@ -70,18 +71,24 @@ async def pay_crypto_callback_handler(
     )
 
     if invoice_url:
+        if sale_mode == "extra_devices":
+            link_msg = get_text("payment_link_message_extra_devices", count=devices)
+            back_cb = "main_action:my_subscription"
+        elif sale_mode == "traffic":
+            link_msg = get_text("payment_link_message_traffic", traffic_gb=human_value)
+            back_cb = f"subscribe_period:{human_value}"
+        else:
+            link_msg = get_text("payment_link_message", months=int(months), traffic_gb=human_value)
+            back_cb = f"subscribe_period:{human_value}"
+
         try:
             await callback.message.edit_text(
-                get_text(
-                    key="payment_link_message_traffic" if sale_mode == "traffic" else "payment_link_message",
-                    months=int(months),
-                    traffic_gb=human_value,
-                ),
+                link_msg,
                 reply_markup=get_payment_url_keyboard(
                     invoice_url,
                     current_lang,
                     i18n,
-                    back_callback=f"subscribe_period:{human_value}",
+                    back_callback=back_cb,
                     back_text_key="back_to_payment_methods_button",
                 ),
                 disable_web_page_preview=False,
@@ -89,16 +96,12 @@ async def pay_crypto_callback_handler(
         except Exception:
             try:
                 await callback.message.answer(
-                    get_text(
-                        key="payment_link_message_traffic" if sale_mode == "traffic" else "payment_link_message",
-                        months=int(months),
-                        traffic_gb=human_value,
-                    ),
+                    link_msg,
                     reply_markup=get_payment_url_keyboard(
                         invoice_url,
                         current_lang,
                         i18n,
-                        back_callback=f"subscribe_period:{human_value}",
+                        back_callback=back_cb,
                         back_text_key="back_to_payment_methods_button",
                     ),
                     disable_web_page_preview=False,

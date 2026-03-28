@@ -40,6 +40,8 @@
   "extra_devices_select_quantity": "Выберите количество дополнительных устройств:\n\nТекущий лимит: <b>{current} устр.</b>\nОсталось дней: <b>{days_left}</b>",
   "extra_devices_option": "+{count} устр. — {price} {currency_symbol} (до конца подписки)",
   "extra_devices_activated_success": "✅ Доп. устройства добавлены!\nТеперь вам доступно больше устройств.\n\nКлюч подключения:\n<code>{config_link}</code>",
+  "payment_description_extra_devices": "Доп. устройства ({count} шт.)",
+  "payment_link_message_extra_devices": "Для оплаты доп. устройств ({count} шт.) нажмите кнопку ниже:",
   "buy_traffic_package_button": "{traffic_gb} ГБ - {price} {currency_symbol}",
   "choose_payment_method": "Выберите способ оплаты:",
   "choose_payment_method_traffic": "Выберите способ оплаты пакета трафика:",

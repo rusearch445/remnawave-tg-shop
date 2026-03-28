@@ -64,11 +64,12 @@ async def pay_fk_callback_handler(
 
     user_id = callback.from_user.id
     human_value = str(int(months)) if float(months).is_integer() else f"{months:g}"
-    payment_description = (
-        get_text("payment_description_traffic", traffic_gb=human_value)
-        if sale_mode == "traffic"
-        else get_text("payment_description_subscription", months=int(months))
-    )
+    if sale_mode == "extra_devices":
+        payment_description = get_text("payment_description_extra_devices", count=devices)
+    elif sale_mode == "traffic":
+        payment_description = get_text("payment_description_traffic", traffic_gb=human_value)
+    else:
+        payment_description = get_text("payment_description_subscription", months=int(months))
     currency_code = getattr(freekassa_service, "default_currency", None) or settings.DEFAULT_CURRENCY_SYMBOL or "RUB"
 
     payment_record_payload = {
@@ -144,18 +145,24 @@ async def pay_fk_callback_handler(
                 order_id=order_identifier_display,
                 date=datetime.now().strftime("%Y-%m-%d"),
             )
+            if sale_mode == "extra_devices":
+                link_msg = get_text("payment_link_message_extra_devices", count=devices)
+                back_cb = "main_action:my_subscription"
+            elif sale_mode == "traffic":
+                link_msg = get_text("payment_link_message_traffic", traffic_gb=human_value)
+                back_cb = f"subscribe_period:{human_value}"
+            else:
+                link_msg = get_text("payment_link_message", months=int(months), traffic_gb=human_value)
+                back_cb = f"subscribe_period:{human_value}"
+
             try:
                 await callback.message.edit_text(
-                    f"{order_info_text}\n\n" + get_text(
-                        key="payment_link_message_traffic" if sale_mode == "traffic" else "payment_link_message",
-                        months=int(months),
-                        traffic_gb=human_value,
-                    ),
+                    f"{order_info_text}\n\n{link_msg}",
                     reply_markup=get_payment_url_keyboard(
                         location,
                         current_lang,
                         i18n,
-                        back_callback=f"subscribe_period:{human_value}",
+                        back_callback=back_cb,
                         back_text_key="back_to_payment_methods_button",
                     ),
                     disable_web_page_preview=False,
@@ -164,16 +171,12 @@ async def pay_fk_callback_handler(
                 logging.warning(f"FreeKassa: failed to display payment link ({e_edit}), sending new message.")
                 try:
                     await callback.message.answer(
-                        f"{order_info_text}\n\n" + get_text(
-                            key="payment_link_message_traffic" if sale_mode == "traffic" else "payment_link_message",
-                            months=int(months),
-                            traffic_gb=human_value,
-                        ),
+                        f"{order_info_text}\n\n{link_msg}",
                         reply_markup=get_payment_url_keyboard(
                             location,
                             current_lang,
                             i18n,
-                            back_callback=f"subscribe_period:{human_value}",
+                            back_callback=back_cb,
                             back_text_key="back_to_payment_methods_button",
                         ),
                         disable_web_page_preview=False,

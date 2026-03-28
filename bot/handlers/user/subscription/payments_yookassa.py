@@ -79,11 +79,12 @@ async def _initiate_yk_payment(
     if not callback.message:
         return False
 
-    payment_description = (
-        get_text("payment_description_traffic", traffic_gb=_format_value(months))
-        if sale_mode == "traffic"
-        else get_text("payment_description_subscription", months=int(months))
-    )
+    if sale_mode == "extra_devices":
+        payment_description = get_text("payment_description_extra_devices", count=devices)
+    elif sale_mode == "traffic":
+        payment_description = get_text("payment_description_traffic", traffic_gb=_format_value(months))
+    else:
+        payment_description = get_text("payment_description_subscription", months=int(months))
     full_sale_mode = f"{sale_mode}:{devices}" if sale_mode == "extra_devices" else sale_mode
     payment_record_data = {
         "user_id": user_id,
@@ -217,18 +218,24 @@ async def _initiate_yk_payment(
                 pass
             return False
 
+        if sale_mode == "extra_devices":
+            yk_link_msg = get_text("payment_link_message_extra_devices", count=devices)
+            yk_back_cb = "main_action:my_subscription"
+        elif sale_mode == "traffic":
+            yk_link_msg = get_text("payment_link_message_traffic", traffic_gb=_format_value(months))
+            yk_back_cb = back_callback
+        else:
+            yk_link_msg = get_text("payment_link_message", months=int(months), traffic_gb=_format_value(months))
+            yk_back_cb = back_callback
+
         try:
             await callback.message.edit_text(
-                get_text(
-                    key="payment_link_message_traffic" if sale_mode == "traffic" else "payment_link_message",
-                    months=int(months),
-                    traffic_gb=_format_value(months),
-                ),
+                yk_link_msg,
                 reply_markup=get_payment_url_keyboard(
                     payment_response_yk["confirmation_url"],
                     current_lang,
                     i18n,
-                    back_callback=back_callback,
+                    back_callback=yk_back_cb,
                     back_text_key="back_to_payment_methods_button",
                 ),
                 disable_web_page_preview=False,
@@ -239,16 +246,12 @@ async def _initiate_yk_payment(
             )
             try:
                 await callback.message.answer(
-                    get_text(
-                        key="payment_link_message_traffic" if sale_mode == "traffic" else "payment_link_message",
-                        months=int(months),
-                        traffic_gb=_format_value(months),
-                    ),
+                    yk_link_msg,
                     reply_markup=get_payment_url_keyboard(
                         payment_response_yk["confirmation_url"],
                         current_lang,
                         i18n,
-                        back_callback=back_callback,
+                        back_callback=yk_back_cb,
                         back_text_key="back_to_payment_methods_button",
                     ),
                     disable_web_page_preview=False,
