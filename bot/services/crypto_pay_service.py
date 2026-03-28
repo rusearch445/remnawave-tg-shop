@@ -72,6 +72,7 @@ class CryptoPayService:
             return None
 
         # Create pending payment in DB and commit to persist
+        full_sale_mode = f"{sale_mode}:{device_limit}" if sale_mode == "extra_devices" else sale_mode
         try:
             payment_record = await payment_dal.create_payment_record(
                 session,
@@ -84,6 +85,7 @@ class CryptoPayService:
                     "subscription_duration_months": int(months),
                     "provider": "cryptopay",
                     "device_limit": device_limit,
+                    "sale_mode": full_sale_mode,
                 },
             )
             await session.commit()
@@ -140,7 +142,7 @@ class CryptoPayService:
             user_id = int(meta["user_id"])
             months = float(meta.get("subscription_months") or 0)
             payment_db_id = int(meta["payment_db_id"])
-            sale_mode = meta.get("sale_mode") or ("traffic" if self.settings.traffic_sale_mode else "subscription")
+            sale_mode_from_meta = meta.get("sale_mode") or ("traffic" if self.settings.traffic_sale_mode else "subscription")
             traffic_gb = float(meta.get("traffic_gb")) if meta.get("traffic_gb") else months
         except Exception as e:
             logging.error(f"Failed to parse CryptoPay payload: {e}")
@@ -156,6 +158,7 @@ class CryptoPayService:
         async with async_session_factory() as session:
             payment = await payment_dal.get_payment_by_db_id(session, payment_db_id)
             device_limit = (payment.device_limit or 1) if payment else 1
+            sale_mode = (payment.sale_mode if payment and payment.sale_mode else None) or sale_mode_from_meta
             try:
                 await payment_dal.update_provider_payment_and_status(
                     session,
@@ -166,7 +169,7 @@ class CryptoPayService:
                 activation = await subscription_service.activate_subscription(
                     session,
                     user_id,
-                    int(months) if sale_mode != "traffic" else 0,
+                    int(months) if sale_mode not in ("traffic",) and not sale_mode.startswith("extra_devices") else 0,
                     float(invoice.amount),
                     payment_db_id,
                     provider="cryptopay",
@@ -175,7 +178,7 @@ class CryptoPayService:
                     device_limit=device_limit,
                 )
                 referral_bonus = None
-                if sale_mode != "traffic":
+                if sale_mode != "traffic" and not sale_mode.startswith("extra_devices"):
                     referral_bonus = await referral_service.apply_referral_bonuses_for_payment(
                         session,
                         user_id,
@@ -203,7 +206,12 @@ class CryptoPayService:
                 final_end = referral_bonus["referee_new_end_date"]
                 applied_days = referral_bonus.get("referee_bonus_applied_days", 0)
 
-            if sale_mode == "traffic":
+            if sale_mode.startswith("extra_devices"):
+                text = _(
+                    "extra_devices_activated_success",
+                    config_link=config_link_text,
+                )
+            elif sale_mode == "traffic":
                 text = _("payment_successful_traffic_full",
                          traffic_gb=str(int(traffic_gb)) if float(traffic_gb).is_integer() else f"{traffic_gb:g}",
                          end_date=final_end.strftime('%Y-%m-%d') if final_end else "—",

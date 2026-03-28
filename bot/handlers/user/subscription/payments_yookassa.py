@@ -84,6 +84,7 @@ async def _initiate_yk_payment(
         if sale_mode == "traffic"
         else get_text("payment_description_subscription", months=int(months))
     )
+    full_sale_mode = f"{sale_mode}:{devices}" if sale_mode == "extra_devices" else sale_mode
     payment_record_data = {
         "user_id": user_id,
         "amount": price_rub,
@@ -92,6 +93,7 @@ async def _initiate_yk_payment(
         "description": payment_description,
         "subscription_duration_months": int(months),
         "device_limit": devices,
+        "sale_mode": full_sale_mode,
     }
 
     db_payment_record = None

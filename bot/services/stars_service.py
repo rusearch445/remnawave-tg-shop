@@ -29,6 +29,7 @@ class StarsService:
     async def create_invoice(self, session: AsyncSession, user_id: int, months: int,
                              stars_price: int, description: str, sale_mode: str = "subscription",
                              device_limit: int = 1) -> Optional[int]:
+        full_sale_mode = f"{sale_mode}:{device_limit}" if sale_mode == "extra_devices" else sale_mode
         payment_record_data = {
             "user_id": user_id,
             "amount": float(stars_price),
@@ -38,6 +39,7 @@ class StarsService:
             "subscription_duration_months": int(months),
             "provider": "telegram_stars",
             "device_limit": device_limit,
+            "sale_mode": full_sale_mode,
         }
         try:
             db_payment_record = await payment_dal.create_payment_record(
@@ -76,6 +78,7 @@ class StarsService:
                                          sale_mode: str = "subscription") -> None:
         payment = await payment_dal.get_payment_by_db_id(session, payment_db_id)
         device_limit = (payment.device_limit or 1) if payment else 1
+        actual_sale_mode = (payment.sale_mode if payment and payment.sale_mode else None) or sale_mode
 
         try:
             await payment_dal.update_provider_payment_and_status(
@@ -93,12 +96,12 @@ class StarsService:
         activation_details = await self.subscription_service.activate_subscription(
             session,
             message.from_user.id,
-            int(months) if sale_mode != "traffic" else 0,
+            int(months) if actual_sale_mode != "traffic" else 0,
             float(stars_amount),
             payment_db_id,
             provider="telegram_stars",
-            sale_mode=sale_mode,
-            traffic_gb=months if sale_mode == "traffic" else None,
+            sale_mode=actual_sale_mode,
+            traffic_gb=months if actual_sale_mode == "traffic" else None,
             device_limit=device_limit,
         )
         if not activation_details or not activation_details.get("end_date"):
@@ -107,7 +110,7 @@ class StarsService:
             return
 
         referral_bonus = None
-        if sale_mode != "traffic":
+        if actual_sale_mode != "traffic" and not actual_sale_mode.startswith("extra_devices"):
             referral_bonus = await self.referral_service.apply_referral_bonuses_for_payment(
                 session,
                 message.from_user.id,
@@ -132,7 +135,14 @@ class StarsService:
         config_link_display, connect_button_url = await prepare_config_links(self.settings, raw_config_link)
         config_link_text = config_link_display or _("config_link_not_available")
 
-        if sale_mode == "traffic":
+        if actual_sale_mode.startswith("extra_devices"):
+            success_msg = _(
+                "payment_successful_full",
+                months=0,
+                end_date=final_end.strftime('%Y-%m-%d') if final_end else "—",
+                config_link=config_link_text,
+            )
+        elif actual_sale_mode == "traffic":
             success_msg = _(
                 "payment_successful_traffic_full",
                 traffic_gb=str(int(months)) if float(months).is_integer() else f"{months:g}",
@@ -194,10 +204,10 @@ class StarsService:
                 user_id=message.from_user.id,
                 amount=float(stars_amount),
                 currency="XTR",
-                months=int(months) if sale_mode != "traffic" else 0,
+                months=int(months) if actual_sale_mode != "traffic" else 0,
                 payment_provider="stars",
                 username=user.username if user else None,
-                traffic_gb=months if sale_mode == "traffic" else None,
+                traffic_gb=months if actual_sale_mode == "traffic" else None,
             )
         except Exception as e:
             logging.error(f"Failed to send stars payment notification: {e}")

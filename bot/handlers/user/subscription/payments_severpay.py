@@ -59,6 +59,8 @@ async def pay_severpay_callback_handler(
             pass
         return
 
+    full_sale_mode = f"{sale_mode}:{devices}" if sale_mode == "extra_devices" else sale_mode
+
     user_id = callback.from_user.id
     human_value = str(int(months)) if float(months).is_integer() else f"{months:g}"
     payment_description = (
@@ -77,6 +79,7 @@ async def pay_severpay_callback_handler(
         "subscription_duration_months": int(months),
         "provider": "severpay",
         "device_limit": devices,
+        "sale_mode": full_sale_mode,
     }
 
     try:

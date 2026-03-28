@@ -286,12 +286,12 @@ class FreeKassaService:
 
                 months = payment.subscription_duration_months or 1
                 device_limit = payment.device_limit or 1
-                sale_mode = "traffic" if self.settings.traffic_sale_mode else "subscription"
+                sale_mode = payment.sale_mode or ("traffic" if self.settings.traffic_sale_mode else "subscription")
 
                 activation = await self.subscription_service.activate_subscription(
                     session,
                     payment.user_id,
-                    int(months) if sale_mode != "traffic" else 0,
+                    int(months) if sale_mode not in ("traffic",) and not sale_mode.startswith("extra_devices") else 0,
                     float(payment.amount),
                     payment.payment_id,
                     provider="freekassa",
@@ -301,7 +301,7 @@ class FreeKassaService:
                 )
 
                 referral_bonus = None
-                if sale_mode != "traffic":
+                if sale_mode != "traffic" and not sale_mode.startswith("extra_devices"):
                     referral_bonus = await self.referral_service.apply_referral_bonuses_for_payment(
                         session,
                         payment.user_id,
@@ -325,7 +325,7 @@ class FreeKassaService:
             config_link_text = config_link_display or _("config_link_not_available")
             final_end = activation.get("end_date") if activation else None
             months = payment.subscription_duration_months or 1
-            sale_mode = "traffic" if self.settings.traffic_sale_mode else "subscription"
+            sale_mode = payment.sale_mode or ("traffic" if self.settings.traffic_sale_mode else "subscription")
 
             applied_days = 0
             if referral_bonus and referral_bonus.get("referee_new_end_date"):
@@ -342,7 +342,12 @@ class FreeKassaService:
 
             traffic_label = str(int(months)) if float(months).is_integer() else f"{months:g}"
 
-            if sale_mode == "traffic":
+            if sale_mode.startswith("extra_devices"):
+                text = _(
+                    "extra_devices_activated_success",
+                    config_link=config_link_text,
+                )
+            elif sale_mode == "traffic":
                 text = _("payment_successful_traffic_full",
                          traffic_gb=traffic_label,
                          end_date=end_date_str if final_end else "",

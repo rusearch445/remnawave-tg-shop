@@ -132,6 +132,15 @@ def _migration_0005_add_payment_device_limit(connection: Connection) -> None:
         )
 
 
+def _migration_0006_add_payment_sale_mode(connection: Connection) -> None:
+    inspector = inspect(connection)
+    columns: Set[str] = {col["name"] for col in inspector.get_columns("payments")}
+    if "sale_mode" not in columns:
+        connection.execute(
+            text("ALTER TABLE payments ADD COLUMN sale_mode VARCHAR DEFAULT 'subscription'")
+        )
+
+
 MIGRATIONS: List[Migration] = [
     Migration(
         id="0001_add_channel_subscription_fields",
@@ -157,6 +166,11 @@ MIGRATIONS: List[Migration] = [
         id="0005_add_payment_device_limit",
         description="Add device_limit column to payments for multi-device subscriptions",
         upgrade=_migration_0005_add_payment_device_limit,
+    ),
+    Migration(
+        id="0006_add_payment_sale_mode",
+        description="Add sale_mode column to payments to preserve extra_devices context",
+        upgrade=_migration_0006_add_payment_sale_mode,
     ),
 ]
 

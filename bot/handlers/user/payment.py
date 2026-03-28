@@ -44,7 +44,7 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
     user_id_str = metadata.get("user_id")
     subscription_months_str = metadata.get("subscription_months")
     traffic_gb_str = metadata.get("traffic_gb")
-    sale_mode = metadata.get("sale_mode") or ("traffic" if settings.traffic_sale_mode else "subscription")
+    sale_mode_from_meta = metadata.get("sale_mode") or ("traffic" if settings.traffic_sale_mode else "subscription")
     promo_code_id_str = metadata.get("promo_code_id")
     payment_db_id_str = metadata.get("payment_db_id")
     auto_renew_subscription_id_str = metadata.get(
@@ -69,13 +69,13 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
         traffic_amount_gb = float(traffic_gb_str) if traffic_gb_str else subscription_months
         payment_db_id = int(
             payment_db_id_str) if payment_db_id_str and payment_db_id_str.isdigit() else None
-        is_auto_renew = bool(auto_renew_subscription_id_str and not payment_db_id and sale_mode != "traffic")
+        is_auto_renew = bool(auto_renew_subscription_id_str and not payment_db_id and sale_mode_from_meta != "traffic")
         promo_code_id = int(
             promo_code_id_str
         ) if promo_code_id_str and promo_code_id_str.isdigit() else None
 
         amount_data = payment_info_from_webhook.get("amount", {})
-        months_for_record = int(subscription_months) if sale_mode != "traffic" else 0
+        months_for_record = int(subscription_months) if sale_mode_from_meta != "traffic" else 0
         payment_value = float(amount_data.get("value", 0.0))
         yk_payment_id_from_hook = payment_info_from_webhook.get("id")
 
@@ -218,7 +218,8 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
         except Exception:
             logging.exception("Failed to persist YooKassa payment method from webhook")
         device_limit = (payment_record.device_limit or 1) if payment_record else 1
-        months_for_activation = int(subscription_months) if sale_mode != "traffic" else 0
+        sale_mode = (payment_record.sale_mode if payment_record and payment_record.sale_mode else None) or sale_mode_from_meta
+        months_for_activation = int(subscription_months) if sale_mode not in ("traffic",) and not sale_mode.startswith("extra_devices") else 0
         activation_details = await subscription_service.activate_subscription(
             session,
             user_id,
@@ -257,7 +258,7 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
             "applied_promo_bonus_days", 0)
 
         referral_bonus_info = None
-        if sale_mode != "traffic":
+        if sale_mode != "traffic" and not sale_mode.startswith("extra_devices"):
             referral_bonus_info = await referral_service.apply_referral_bonuses_for_payment(
                 session,
                 user_id,
@@ -311,6 +312,19 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
                 end_date=final_end_date_for_user.strftime('%Y-%m-%d'),
             )
             details_markup = None
+        elif sale_mode.startswith("extra_devices"):
+            details_message = _(
+                "extra_devices_activated_success",
+                config_link=config_link_text,
+            )
+            details_markup = get_connect_and_main_keyboard(
+                user_lang,
+                i18n,
+                settings,
+                config_link_display,
+                connect_button_url=connect_button_url,
+                preserve_message=True,
+            )
         elif sale_mode == "traffic":
             details_message = _(
                 "payment_successful_traffic_full",
