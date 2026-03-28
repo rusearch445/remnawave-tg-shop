@@ -35,7 +35,9 @@ async def select_subscription_period_callback_handler(
     stars_traffic_packages = getattr(settings, "stars_traffic_packages", {}) or {}
     traffic_mode = bool(getattr(settings, "traffic_sale_mode", False) or stars_traffic_packages)
     try:
-        months = float(callback.data.split(":")[-1])
+        parts = callback.data.split(":")[1:]
+        months = float(parts[0])
+        devices = int(parts[1]) if len(parts) > 1 else 1
     except (ValueError, IndexError):
         logging.error(f"Invalid subscription period in callback_data: {callback.data}")
         try:
@@ -43,6 +45,7 @@ async def select_subscription_period_callback_handler(
         except Exception:
             pass
         return
+    devices = max(1, min(devices, getattr(settings, "MAX_DEVICE_LIMIT", 3)))
 
     price_source = traffic_packages if traffic_mode else settings.subscription_options
     stars_price_source = stars_traffic_packages if traffic_mode else settings.stars_subscription_options
@@ -84,6 +87,15 @@ async def select_subscription_period_callback_handler(
                 pass
             return
 
+    extra_dev_price = float(getattr(settings, "EXTRA_DEVICE_PRICE_RUB", 0))
+    if devices > 1 and not traffic_mode:
+        price_rub = price_rub + (devices - 1) * extra_dev_price
+        extra_dev_stars = getattr(settings, "EXTRA_DEVICE_PRICE_STARS", None)
+        if stars_price is not None and extra_dev_stars is not None:
+            stars_price = stars_price + (devices - 1) * int(extra_dev_stars)
+        elif devices > 1:
+            stars_price = None
+
     # --- Apply discount promo if active ---
     discount_info = await promo_code_dal.get_user_active_discount(session, callback.from_user.id)
     discount_percent = discount_info["discount_percent"] if discount_info else 0
@@ -115,6 +127,7 @@ async def select_subscription_period_callback_handler(
         i18n,
         settings,
         sale_mode="traffic" if traffic_mode else "subscription",
+        devices=devices,
     )
 
     try:

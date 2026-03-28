@@ -105,6 +105,7 @@ class Payment(Base):
     status = Column(String, nullable=False, index=True)
     description = Column(String, nullable=True)
     subscription_duration_months = Column(Integer, nullable=True)
+    device_limit = Column(Integer, nullable=True, default=1)
     promo_code_id = Column(Integer,
                            ForeignKey("promo_codes.promo_code_id"),
                            nullable=True)

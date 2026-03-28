@@ -158,6 +158,7 @@ class PlategaService:
                 return web.Response(text="ok")
 
             payment_months = payment.subscription_duration_months or 1
+            device_limit = payment.device_limit or 1
             sale_mode = "traffic" if self.settings.traffic_sale_mode else "subscription"
 
             if status == "CONFIRMED":
@@ -192,6 +193,7 @@ class PlategaService:
                         provider="platega",
                         sale_mode=sale_mode,
                         traffic_gb=payment_months if sale_mode == "traffic" else None,
+                        device_limit=device_limit,
                     )
 
                     referral_bonus = None

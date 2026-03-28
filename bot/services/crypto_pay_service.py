@@ -65,6 +65,7 @@ class CryptoPayService:
         amount: float,
         description: str,
         sale_mode: str = "subscription",
+        device_limit: int = 1,
     ) -> Optional[str]:
         if not self.configured or not self.client:
             logging.error("CryptoPayService not configured")
@@ -82,6 +83,7 @@ class CryptoPayService:
                     "description": description,
                     "subscription_duration_months": int(months),
                     "provider": "cryptopay",
+                    "device_limit": device_limit,
                 },
             )
             await session.commit()
@@ -152,6 +154,8 @@ class CryptoPayService:
         referral_service: ReferralService = app["referral_service"]
 
         async with async_session_factory() as session:
+            payment = await payment_dal.get_payment_by_db_id(session, payment_db_id)
+            device_limit = (payment.device_limit or 1) if payment else 1
             try:
                 await payment_dal.update_provider_payment_and_status(
                     session,
@@ -168,6 +172,7 @@ class CryptoPayService:
                     provider="cryptopay",
                     sale_mode=sale_mode,
                     traffic_gb=traffic_gb if sale_mode == "traffic" else None,
+                    device_limit=device_limit,
                 )
                 referral_bonus = None
                 if sale_mode != "traffic":

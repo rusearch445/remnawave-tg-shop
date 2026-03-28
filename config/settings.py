@@ -217,6 +217,23 @@ class Settings(BaseSettings):
         default=None,
         description="Default hardware device limit for panel users (0 = unlimited)"
     )
+
+    DEVICE_LIMIT_SELECTION_ENABLED: bool = Field(
+        default=False,
+        description="Allow users to select a device limit (1..MAX_DEVICE_LIMIT) when purchasing a subscription",
+    )
+    MAX_DEVICE_LIMIT: int = Field(
+        default=3,
+        description="Maximum number of devices a user can purchase (only when DEVICE_LIMIT_SELECTION_ENABLED=true)",
+    )
+    EXTRA_DEVICE_PRICE_RUB: int = Field(
+        default=80,
+        description="Extra price in RUB per additional device above the base limit of 1",
+    )
+    EXTRA_DEVICE_PRICE_STARS: Optional[int] = Field(
+        default=None,
+        description="Extra price in Stars per additional device (if not set, Stars option is hidden for >1 device)",
+    )
     
     # Inline mode thumbnail URLs
     INLINE_REFERRAL_THUMBNAIL_URL: str = Field(default="https://cdn-icons-png.flaticon.com/512/1077/1077114.png")

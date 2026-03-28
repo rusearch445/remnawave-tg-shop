@@ -123,6 +123,15 @@ def _migration_0004_add_promo_discount_percent(connection: Connection) -> None:
         )
 
 
+def _migration_0005_add_payment_device_limit(connection: Connection) -> None:
+    inspector = inspect(connection)
+    columns: Set[str] = {col["name"] for col in inspector.get_columns("payments")}
+    if "device_limit" not in columns:
+        connection.execute(
+            text("ALTER TABLE payments ADD COLUMN device_limit INTEGER DEFAULT 1")
+        )
+
+
 MIGRATIONS: List[Migration] = [
     Migration(
         id="0001_add_channel_subscription_fields",
@@ -143,6 +152,11 @@ MIGRATIONS: List[Migration] = [
         id="0004_add_promo_discount_percent",
         description="Add discount_percent column to promo_codes for discount promo codes",
         upgrade=_migration_0004_add_promo_discount_percent,
+    ),
+    Migration(
+        id="0005_add_payment_device_limit",
+        description="Add device_limit column to payments for multi-device subscriptions",
+        upgrade=_migration_0005_add_payment_device_limit,
     ),
 ]
 
