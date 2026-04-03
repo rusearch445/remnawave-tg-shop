@@ -12,6 +12,7 @@ from .panel_api_service import PanelApiService
 from bot.middlewares.i18n import JsonI18n
 from bot.keyboards.inline.user_keyboards import get_subscribe_only_markup, get_autorenew_cancel_keyboard
 from db.dal import user_dal
+from bot.utils.text_sanitizer import safe_user_name
 
 EVENT_MAP = {
     "user.expires_in_72_hours": (3, "subscription_72h_notification"),
@@ -56,7 +57,7 @@ class PanelWebhookService:
         async with self.async_session_factory() as session:
             db_user = await user_dal.get_user_by_id(session, user_id)
             lang = db_user.language_code if db_user and db_user.language_code else self.settings.DEFAULT_LANGUAGE
-            first_name = db_user.first_name or f"User {user_id}" if db_user else f"User {user_id}"
+            first_name = safe_user_name(db_user.first_name if db_user else None)
 
         markup = get_subscribe_only_markup(lang, self.i18n)
 

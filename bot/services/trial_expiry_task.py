@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from config.settings import Settings
 from bot.middlewares.i18n import JsonI18n
 from bot.keyboards.inline.user_keyboards import get_trial_expiry_buy_markup
+from bot.utils.text_sanitizer import safe_user_name
 from db.dal import subscription_dal
 
 TRIAL_CHECK_INTERVAL_SECONDS = 600  # 10 minutes
@@ -35,7 +36,7 @@ async def _send_trial_expiry_notifications(
                 continue
 
             lang = user.language_code or settings.DEFAULT_LANGUAGE
-            first_name = user.first_name or f"User {user.user_id}"
+            first_name = safe_user_name(user.first_name)
             _ = lambda k, **kw: i18n.gettext(lang, k, **kw)
 
             markup = get_trial_expiry_buy_markup(lang, i18n)

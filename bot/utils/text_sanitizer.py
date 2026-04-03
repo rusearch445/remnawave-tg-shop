@@ -143,6 +143,34 @@ _NORMALIZED_BANNED_TOKENS = {
     "report",
 }
 
+_PROFANITY_PATTERNS_RU = [
+    re.compile(r"(?iu)\b[хx][уyu][ийяеёйiья]\w*"),
+    re.compile(r"(?iu)\b[пp][иieё][зz3][дd]\w*"),
+    re.compile(r"(?iu)\b[бb][лl][яыaь]\w*"),
+    re.compile(r"(?iu)\b[ёe][бb]\w*"),
+    re.compile(r"(?iu)\b[сsc][уyu][кkч]\w*"),
+    re.compile(r"(?iu)\b[мm][уyu][дd][аaоoиieё]\w*"),
+    re.compile(r"(?iu)\bг[оo]вн\w*"),
+    re.compile(r"(?iu)\b[дd][еe][рpr][ьb]м\w*"),
+    re.compile(r"(?iu)\b[зz][аa][лl][уyu][пp]\w*"),
+    re.compile(r"(?iu)\b[шщ][лl][юy][хx]\w*"),
+    re.compile(r"(?iu)\bнахуй\b"),
+    re.compile(r"(?iu)\bпох[уyu]й\b"),
+    re.compile(r"(?iu)\b[еe][бb]а[тtл]\w*"),
+    re.compile(r"(?iu)\b[нn][аa][хx][уyu]\w*"),
+]
+
+_PROFANITY_BANNED_NORMALIZED = {
+    "porno", "porn", "порно", "порн",
+    "detskoe", "детское", "детская", "детский",
+    "cp", "csam",
+    "наркот", "narkot", "закладк",
+    "террор", "terror",
+    "педо", "pedo",
+    "nazi", "наци", "нацист",
+    "убить", "убей",
+}
+
 _USERNAME_PLACEHOLDER = "клиент"
 
 
@@ -177,6 +205,21 @@ def _remove_patterns(value: str) -> str:
     return updated
 
 
+def _has_profanity(value: str) -> bool:
+    for pattern in _PROFANITY_PATTERNS_RU:
+        if pattern.search(value):
+            return True
+    lower_val = value.lower()
+    for token in _PROFANITY_BANNED_NORMALIZED:
+        if token in lower_val:
+            return True
+    normalized = _normalize_for_detection(value)
+    for token in _PROFANITY_BANNED_NORMALIZED:
+        if token in normalized:
+            return True
+    return False
+
+
 def _finalize(value: str) -> Optional[str]:
     compacted = re.sub(r"\s+", " ", value)
     compacted = compacted.strip(" \t\r\n-_.,/\\")
@@ -186,6 +229,8 @@ def _finalize(value: str) -> Optional[str]:
 
     normalized = _normalize_for_detection(compacted)
     if any(token in normalized for token in _NORMALIZED_BANNED_TOKENS):
+        return None
+    if _has_profanity(compacted):
         return None
     return compacted
 
@@ -224,3 +269,10 @@ def display_name_or_fallback(
     if fallback is not None:
         return fallback
     return _USERNAME_PLACEHOLDER
+
+
+def safe_user_name(full_name: Optional[str]) -> str:
+    if not full_name:
+        return _USERNAME_PLACEHOLDER
+    sanitized = sanitize_display_name(full_name)
+    return sanitized if sanitized else _USERNAME_PLACEHOLDER

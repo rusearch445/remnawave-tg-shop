@@ -12,6 +12,7 @@ from db.models import User
 from db.dal import subscription_dal
 from bot.middlewares.i18n import JsonI18n
 from .subscription_service import SubscriptionService
+from bot.utils.text_sanitizer import safe_user_name
 
 
 class ReferralService:
@@ -85,13 +86,12 @@ class ReferralService:
             inviter_user_model = await user_dal.get_user_by_id(
                 session, inviter_user_id)
 
-            referee_name_for_msg = referee_user_model.first_name or f"User {referee_user_id}"
+            referee_name_for_msg = safe_user_name(
+                referee_user_model.first_name if referee_user_model else None)
 
             default_lang_for_placeholder = self.settings.DEFAULT_LANGUAGE
-            inviter_name_for_referee_msg = (
-                inviter_user_model.first_name if inviter_user_model
-                and inviter_user_model.first_name else self.i18n.gettext(
-                    default_lang_for_placeholder, "friend_placeholder"))
+            inviter_name_for_referee_msg = safe_user_name(
+                inviter_user_model.first_name if inviter_user_model else None)
 
             inviter_bonus_days = self.settings.referral_bonus_inviter.get(
                 purchased_subscription_months)

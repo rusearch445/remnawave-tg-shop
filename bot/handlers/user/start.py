@@ -24,7 +24,7 @@ from bot.services.referral_service import ReferralService
 from bot.services.promo_code_service import PromoCodeService
 from config.settings import Settings
 from bot.middlewares.i18n import JsonI18n
-from bot.utils.text_sanitizer import sanitize_username, sanitize_display_name
+from bot.utils.text_sanitizer import sanitize_username, sanitize_display_name, safe_user_name
 from bot.utils.message_utils import send_or_edit_message
 
 router = Router(name="user_start_router")
@@ -41,7 +41,7 @@ async def send_main_menu(target_event: Union[types.Message,
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
 
     user_id = target_event.from_user.id
-    user_full_name = hd.quote(target_event.from_user.full_name)
+    user_full_name = safe_user_name(target_event.from_user.full_name)
 
     if not i18n:
         logging.error(
@@ -430,7 +430,7 @@ async def start_command_handler(message: types.Message,
     if is_new_user and settings.TRIAL_ENABLED and not promo_code_to_apply:
         welcome_text = _(
             key="welcome_new_user",
-            user_name=hd.quote(user.full_name),
+            user_name=safe_user_name(user.full_name),
             trial_days=settings.TRIAL_DURATION_DAYS,
         )
         await message.answer(
@@ -442,7 +442,7 @@ async def start_command_handler(message: types.Message,
 
     # Send welcome message if not disabled
     if not settings.DISABLE_WELCOME_MESSAGE:
-        await message.answer(_(key="welcome", user_name=hd.quote(user.full_name)))
+        await message.answer(_(key="welcome", user_name=safe_user_name(user.full_name)))
 
     # Auto-apply promo code if provided via start parameter
     if promo_code_to_apply:
@@ -532,7 +532,7 @@ async def verify_channel_subscription_callback(
 
     if not settings.DISABLE_WELCOME_MESSAGE:
         welcome_text = _(key="welcome",
-                         user_name=hd.quote(callback.from_user.full_name))
+                         user_name=safe_user_name(callback.from_user.full_name))
         if callback.message:
             await callback.message.answer(welcome_text)
         else:
