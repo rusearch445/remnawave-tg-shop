@@ -787,7 +787,7 @@ async def extra_devices_select_callback(
         builder.row(
             InlineKeyboardButton(
                 text=btn_text,
-                callback_data=f"extra_devices:buy:{count}:{int(total_price)}",
+                callback_data=f"extra_devices:buy:{count}",
             )
         )
     builder.row(
@@ -823,7 +823,6 @@ async def extra_devices_buy_callback(
     try:
         parts = callback.data.split(":")
         extra_count = int(parts[2])
-        price = float(parts[3])
     except (ValueError, IndexError):
         try:
             await callback.answer(get_text("error_try_again"), show_alert=True)
@@ -831,8 +830,10 @@ async def extra_devices_buy_callback(
             pass
         return
 
+    extra_count = max(1, min(extra_count, settings.MAX_DEVICE_LIMIT - 1))
+
     active = await subscription_service.get_active_subscription_details(session, callback.from_user.id)
-    if not active:
+    if not active or not active.get("end_date"):
         try:
             await callback.answer(get_text("subscription_not_active"), show_alert=True)
         except Exception:
@@ -843,6 +844,20 @@ async def extra_devices_buy_callback(
     if not isinstance(current_dev, int):
         current_dev = 1
     new_dev_limit = current_dev + extra_count
+
+    # Validate requested count is within allowed range
+    if new_dev_limit > settings.MAX_DEVICE_LIMIT:
+        try:
+            await callback.answer(get_text("error_try_again"), show_alert=True)
+        except Exception:
+            pass
+        return
+
+    # Recalculate price server-side — never trust callback_data for prices
+    end_date = active["end_date"]
+    days_left = max(1, (end_date.date() - datetime.now().date()).days)
+    price_per_device = math.ceil(days_left / 30) * settings.EXTRA_DEVICE_PRICE_RUB
+    price = price_per_device * extra_count
 
     from bot.keyboards.inline.user_keyboards import get_payment_method_keyboard
     reply_markup = get_payment_method_keyboard(
