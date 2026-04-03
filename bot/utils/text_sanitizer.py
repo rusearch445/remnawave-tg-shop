@@ -144,30 +144,27 @@ _NORMALIZED_BANNED_TOKENS = {
 }
 
 _PROFANITY_PATTERNS_RU = [
-    re.compile(r"(?iu)\b[хx][уyu][ийяеёйiья]\w*"),
+    re.compile(r"(?iu)\b[хx][уyu][ийяеёiь]\w*"),
     re.compile(r"(?iu)\b[пp][иieё][зz3][дd]\w*"),
-    re.compile(r"(?iu)\b[бb][лl][яыaь]\w*"),
     re.compile(r"(?iu)\b[ёe][бb]\w*"),
     re.compile(r"(?iu)\b[сsc][уyu][кkч]\w*"),
     re.compile(r"(?iu)\b[мm][уyu][дd][аaоoиieё]\w*"),
     re.compile(r"(?iu)\bг[оo]вн\w*"),
-    re.compile(r"(?iu)\b[дd][еe][рpr][ьb]м\w*"),
     re.compile(r"(?iu)\b[зz][аa][лl][уyu][пp]\w*"),
     re.compile(r"(?iu)\b[шщ][лl][юy][хx]\w*"),
     re.compile(r"(?iu)\bнахуй\b"),
-    re.compile(r"(?iu)\bпох[уyu]й\b"),
+    re.compile(r"(?iu)\bпохуй\b"),
     re.compile(r"(?iu)\b[еe][бb]а[тtл]\w*"),
-    re.compile(r"(?iu)\b[нn][аa][хx][уyu]\w*"),
+    re.compile(r"(?iu)\b[нn][аa][хx][уyu][иiйяеё]\w*"),
 ]
 
 _PROFANITY_BANNED_NORMALIZED = {
     "porno", "porn", "порно", "порн",
-    "detskoe", "детское", "детская", "детский",
-    "cp", "csam",
+    "csam",
     "наркот", "narkot", "закладк",
     "террор", "terror",
-    "педо", "pedo",
-    "nazi", "наци", "нацист",
+    "педофил", "pedofil", "pedo",
+    "nazi", "нацист",
     "убить", "убей",
 }
 
