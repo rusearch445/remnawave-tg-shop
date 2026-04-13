@@ -693,8 +693,12 @@ async def main_action_callback_handler(
                              subscription_service,
                              session,
                              is_edit=False)
+    elif action == "partner_balance":
+        from . import partner as user_partner_handlers
+        await user_partner_handlers.partner_balance_handler(
+            callback, i18n_data, settings, session)
     else:
         i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
         _ = lambda key, **kwargs: i18n.gettext(
-            i18n_data.get("current_language"), key, **kw) if i18n else key
+            i18n_data.get("current_language"), key, **kwargs) if i18n else key
         await callback.answer(_("main_menu_unknown_action"), show_alert=True)
