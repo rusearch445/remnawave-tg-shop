@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import User, PartnerWithdrawal
@@ -62,6 +62,9 @@ async def deduct_partner_balance(
     return user.partner_balance
 
 
+MIN_WITHDRAWAL_AMOUNT = 1000.0
+
+
 async def create_withdrawal_request(
     session: AsyncSession,
     user_id: int,
@@ -71,9 +74,28 @@ async def create_withdrawal_request(
     user = await session.get(User, user_id)
     if not user or not user.is_partner:
         return None
-    balance = float(user.partner_balance or 0.0)
-    if amount > balance:
+
+    if amount < MIN_WITHDRAWAL_AMOUNT:
+        logging.warning("create_withdrawal_request: amount %.2f below minimum", amount)
         return None
+
+    balance = float(user.partner_balance or 0.0)
+
+    # Sum all currently pending requests to prevent double-spend
+    pending_sum_result = await session.execute(
+        select(sa_func.coalesce(sa_func.sum(PartnerWithdrawal.amount), 0.0))
+        .where(PartnerWithdrawal.user_id == user_id)
+        .where(PartnerWithdrawal.status == "pending")
+    )
+    pending_sum = float(pending_sum_result.scalar() or 0.0)
+
+    if amount + pending_sum > balance:
+        logging.warning(
+            "create_withdrawal_request: amount %.2f + pending %.2f exceeds balance %.2f for user %d",
+            amount, pending_sum, balance, user_id,
+        )
+        return None
+
     withdrawal = PartnerWithdrawal(
         user_id=user_id,
         amount=amount,

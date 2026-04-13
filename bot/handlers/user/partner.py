@@ -13,7 +13,7 @@ from db.dal import partner_dal, user_dal
 
 router = Router(name="user_partner_router")
 
-MIN_WITHDRAWAL = 100.0
+MIN_WITHDRAWAL = 1000.0
 
 
 class PartnerWithdrawalStates(StatesGroup):
@@ -216,6 +216,24 @@ async def partner_withdrawal_confirm_handler(
 
     if not amount or not requisites:
         await callback.answer(_("error_try_again"), show_alert=True)
+        return
+
+    # Re-verify partner status and balance from DB (FSM data may be stale)
+    user = await user_dal.get_user_by_id(session, callback.from_user.id)
+    if not user or not getattr(user, "is_partner", False):
+        await callback.answer(_("error_occurred_try_again"), show_alert=True)
+        return
+
+    if amount < MIN_WITHDRAWAL:
+        await callback.answer(_("partner_amount_invalid"), show_alert=True)
+        return
+
+    live_balance = float(user.partner_balance or 0.0)
+    if amount > live_balance:
+        await callback.answer(
+            _("partner_amount_exceeds_balance", balance=round(live_balance, 2)),
+            show_alert=True,
+        )
         return
 
     withdrawal = await partner_dal.create_withdrawal_request(session, callback.from_user.id, amount, requisites)
