@@ -204,6 +204,7 @@ class PlategaService:
                             int(payment_months),
                             current_payment_db_id=payment.payment_id,
                             skip_if_active_before_payment=False,
+                            payment_amount_rub=float(payment.amount),
                         )
 
                     await session.commit()

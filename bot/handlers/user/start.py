@@ -25,6 +25,7 @@ from bot.services.promo_code_service import PromoCodeService
 from config.settings import Settings
 from bot.middlewares.i18n import JsonI18n
 from bot.utils.text_sanitizer import sanitize_username, sanitize_display_name, safe_user_name
+from db.dal import partner_dal
 from bot.utils.message_utils import send_or_edit_message
 
 router = Router(name="user_start_router")
@@ -75,9 +76,19 @@ async def send_main_menu(target_event: Union[types.Message,
                 "Method has_had_any_subscription is missing in SubscriptionService for send_main_menu!"
             )
 
+    show_partner_button = False
+    try:
+        from db.dal import user_dal as _user_dal
+        _db_user = await _user_dal.get_user_by_id(session, user_id)
+        if _db_user and getattr(_db_user, "is_partner", False):
+            show_partner_button = True
+    except Exception:
+        pass
+
     text = _(key="main_menu_greeting", user_name=user_full_name)
     reply_markup = get_main_menu_inline_keyboard(current_lang, i18n, settings,
-                                                 show_trial_button_in_menu)
+                                                 show_trial_button_in_menu,
+                                                 show_partner_button=show_partner_button)
 
     await send_or_edit_message(
         event=target_event,

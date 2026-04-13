@@ -185,6 +185,7 @@ class CryptoPayService:
                         int(months) or 1,
                         current_payment_db_id=payment_db_id,
                         skip_if_active_before_payment=False,
+                        payment_amount_rub=float(payment.amount) if payment else 0.0,
                     )
                 await session.commit()
             except Exception as e:

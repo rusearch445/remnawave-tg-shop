@@ -29,6 +29,9 @@ class User(Base):
     channel_subscription_checked_at = Column(DateTime(timezone=True),
                                              nullable=True)
     channel_subscription_verified_for = Column(BigInteger, nullable=True)
+    is_partner = Column(Boolean, default=False, index=True)
+    partner_commission_percent = Column(Integer, nullable=True, default=0)
+    partner_balance = Column(Float, nullable=True, default=0.0)
 
     referrer = relationship("User", remote_side=[user_id], backref="referrals")
     subscriptions = relationship("Subscription",
@@ -267,3 +270,18 @@ class AdAttribution(Base):
 
     user = relationship("User")
     campaign = relationship("AdCampaign", back_populates="attributions")
+
+
+class PartnerWithdrawal(Base):
+    __tablename__ = "partner_withdrawals"
+
+    withdrawal_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.user_id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    status = Column(String, nullable=False, default="pending", index=True)
+    requisites = Column(Text, nullable=False)
+    admin_note = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User")

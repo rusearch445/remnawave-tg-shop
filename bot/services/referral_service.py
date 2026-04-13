@@ -13,6 +13,7 @@ from db.dal import subscription_dal
 from bot.middlewares.i18n import JsonI18n
 from .subscription_service import SubscriptionService
 from bot.utils.text_sanitizer import safe_user_name
+from db.dal import partner_dal
 
 
 class ReferralService:
@@ -31,7 +32,8 @@ class ReferralService:
             referee_user_id: int,
             purchased_subscription_months: int,
             current_payment_db_id: Optional[int] = None,
-            skip_if_active_before_payment: bool = True) -> Dict[str, Any]:
+            skip_if_active_before_payment: bool = True,
+            payment_amount_rub: float = 0.0) -> Dict[str, Any]:
 
         referee_final_end_date: Optional[datetime] = None
         referee_bonus_applied_days: Optional[int] = None
@@ -92,6 +94,34 @@ class ReferralService:
             default_lang_for_placeholder = self.settings.DEFAULT_LANGUAGE
             inviter_name_for_referee_msg = safe_user_name(
                 inviter_user_model.first_name if inviter_user_model else None)
+
+            # Partner program: if inviter is a partner, credit commission instead of bonus days
+            if inviter_user_model and getattr(inviter_user_model, "is_partner", False):
+                commission_percent = int(inviter_user_model.partner_commission_percent or 0)
+                if commission_percent > 0 and payment_amount_rub > 0:
+                    commission = round(payment_amount_rub * commission_percent / 100, 2)
+                    await partner_dal.credit_partner_balance(session, inviter_user_id, commission)
+                    logging.info(
+                        "Partner commission %.2f RUB (%d%%) credited to partner %d for referee %d payment",
+                        commission, commission_percent, inviter_user_id, referee_user_id,
+                    )
+                    try:
+                        inviter_lang = inviter_user_model.language_code or self.settings.DEFAULT_LANGUAGE
+                        _i = lambda k, **kw: self.i18n.gettext(inviter_lang, k, **kw)
+                        await self.bot.send_message(
+                            inviter_user_id,
+                            _i("partner_commission_notification",
+                               amount=commission,
+                               percent=commission_percent,
+                               referee_name=safe_user_name(referee_user_model.first_name if referee_user_model else None)),
+                        )
+                    except Exception as e_notify:
+                        logging.error("Failed to notify partner %d about commission: %s", inviter_user_id, e_notify)
+                return {
+                    "referee_bonus_applied_days": None,
+                    "referee_new_end_date": None,
+                    "inviter_bonus_applied_flag": False,
+                }
 
             inviter_bonus_days = self.settings.referral_bonus_inviter.get(
                 purchased_subscription_months)

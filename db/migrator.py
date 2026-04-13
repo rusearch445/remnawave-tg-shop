@@ -141,6 +141,48 @@ def _migration_0006_add_payment_sale_mode(connection: Connection) -> None:
         )
 
 
+def _migration_0007_add_partner_fields_to_users(connection: Connection) -> None:
+    inspector = inspect(connection)
+    columns: Set[str] = {col["name"] for col in inspector.get_columns("users")}
+    if "is_partner" not in columns:
+        connection.execute(
+            text("ALTER TABLE users ADD COLUMN is_partner BOOLEAN NOT NULL DEFAULT FALSE")
+        )
+    if "partner_commission_percent" not in columns:
+        connection.execute(
+            text("ALTER TABLE users ADD COLUMN partner_commission_percent INTEGER DEFAULT 0")
+        )
+    if "partner_balance" not in columns:
+        connection.execute(
+            text("ALTER TABLE users ADD COLUMN partner_balance FLOAT DEFAULT 0.0")
+        )
+
+
+def _migration_0008_create_partner_withdrawals(connection: Connection) -> None:
+    connection.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS partner_withdrawals (
+                withdrawal_id SERIAL PRIMARY KEY,
+                user_id BIGINT NOT NULL REFERENCES users(user_id),
+                amount FLOAT NOT NULL,
+                status VARCHAR NOT NULL DEFAULT 'pending',
+                requisites TEXT NOT NULL,
+                admin_note TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                processed_at TIMESTAMPTZ
+            )
+            """
+        )
+    )
+    connection.execute(
+        text("CREATE INDEX IF NOT EXISTS ix_partner_withdrawals_user_id ON partner_withdrawals (user_id)")
+    )
+    connection.execute(
+        text("CREATE INDEX IF NOT EXISTS ix_partner_withdrawals_status ON partner_withdrawals (status)")
+    )
+
+
 MIGRATIONS: List[Migration] = [
     Migration(
         id="0001_add_channel_subscription_fields",
@@ -171,6 +213,16 @@ MIGRATIONS: List[Migration] = [
         id="0006_add_payment_sale_mode",
         description="Add sale_mode column to payments to preserve extra_devices context",
         upgrade=_migration_0006_add_payment_sale_mode,
+    ),
+    Migration(
+        id="0007_add_partner_fields_to_users",
+        description="Add is_partner, partner_commission_percent, partner_balance to users",
+        upgrade=_migration_0007_add_partner_fields_to_users,
+    ),
+    Migration(
+        id="0008_create_partner_withdrawals",
+        description="Create partner_withdrawals table for partner cash-out requests",
+        upgrade=_migration_0008_create_partner_withdrawals,
     ),
 ]
 

@@ -150,6 +150,9 @@ async def admin_panel_actions_callback_handler(
     elif action == "ads_create":
         from . import ads as admin_ads_handlers
         await admin_ads_handlers.ads_create_start(callback, state, settings, i18n_data)
+    elif action == "partner":
+        from . import partner_admin as admin_partner_handlers
+        await admin_partner_handlers.show_partner_section(callback, i18n_data, settings, session)
     elif action == "main":
         try:
             await callback.message.edit_text(
@@ -210,6 +213,10 @@ async def admin_section_handler(callback: types.CallbackQuery, state: FSMContext
                 _("admin_system_functions_section"),
                 reply_markup=get_system_functions_keyboard(i18n, current_lang)
             )
+        elif section == "partner":
+            from . import partner_admin as admin_partner_handlers
+            await admin_partner_handlers.show_partner_section(callback, i18n_data, settings, session)
+            return
         else:
             await callback.answer(_("admin_unknown_action"), show_alert=True)
             return

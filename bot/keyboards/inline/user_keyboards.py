@@ -31,7 +31,8 @@ def get_main_menu_inline_keyboard(
         lang: str,
         i18n_instance,
         settings: Settings,
-        show_trial_button: bool = False) -> InlineKeyboardMarkup:
+        show_trial_button: bool = False,
+        show_partner_button: bool = False) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
 
@@ -60,6 +61,14 @@ def get_main_menu_inline_keyboard(
         text=_(key="menu_apply_promo_button"),
         callback_data="main_action:apply_promo")
     builder.row(referral_button, promo_button)
+
+    if show_partner_button:
+        builder.row(
+            InlineKeyboardButton(
+                text=_(key="menu_partner_program_button"),
+                callback_data="main_action:partner_balance",
+            )
+        )
 
     language_button = InlineKeyboardButton(
         text=_(key="menu_language_settings_inline"),

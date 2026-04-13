@@ -265,6 +265,7 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
                 months_for_activation or int(subscription_months) or 1,
                 current_payment_db_id=payment_db_id,
                 skip_if_active_before_payment=False,
+                payment_amount_rub=float(payment_value) if payment_value else 0.0,
             )
         applied_referee_bonus_days_from_referral: Optional[int] = None
         if referral_bonus_info and referral_bonus_info.get(

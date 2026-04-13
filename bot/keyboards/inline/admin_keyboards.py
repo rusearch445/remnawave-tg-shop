@@ -29,10 +29,14 @@ def get_admin_panel_keyboard(i18n_instance, lang: str,
     builder.button(text=_(key="admin_ads_section"),
                    callback_data="admin_action:ads")
 
+    # Партнёрская программа
+    builder.button(text=_(key="admin_partner_section_button"),
+                   callback_data="admin_section:partner")
+
     # Системные функции
     builder.button(text=_(key="admin_system_functions_section"),
                    callback_data="admin_section:system_functions")
-    
+
     builder.adjust(1)
     return builder.as_markup()
 
