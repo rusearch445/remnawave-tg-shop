@@ -96,10 +96,26 @@ class SubscriptionService:
                 f"Found panel user by telegramId {user_id}: UUID {panel_user_obj_from_api.get('uuid')}, Username: {panel_user_obj_from_api.get('username')}"
             )
         elif panel_users_by_tg_id_list and len(panel_users_by_tg_id_list) > 1:
-            logging.error(
-                f"CRITICAL: Multiple panel users found for telegramId {user_id}. Manual intervention needed."
-            )
-            return None, None, None, False
+            # Pick the best candidate: prefer ACTIVE, then most recently created
+            active_users = [u for u in panel_users_by_tg_id_list if u.get("status") == "ACTIVE"]
+            if active_users:
+                panel_user_obj_from_api = active_users[0]
+                logging.warning(
+                    f"Multiple panel users found for telegramId {user_id} — auto-selected ACTIVE "
+                    f"uuid={panel_user_obj_from_api.get('uuid')} from {len(panel_users_by_tg_id_list)} candidates."
+                )
+            else:
+                # All expired/disabled — pick the most recently created
+                sorted_users = sorted(
+                    panel_users_by_tg_id_list,
+                    key=lambda u: u.get("createdAt") or "",
+                    reverse=True,
+                )
+                panel_user_obj_from_api = sorted_users[0]
+                logging.warning(
+                    f"Multiple panel users found for telegramId {user_id} (none ACTIVE) — "
+                    f"auto-selected most recent uuid={panel_user_obj_from_api.get('uuid')}."
+                )
 
         if not panel_user_obj_from_api:
             if current_local_panel_uuid:
