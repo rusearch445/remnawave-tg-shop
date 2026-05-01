@@ -74,16 +74,7 @@ def get_main_menu_inline_keyboard(
         text=_(key="menu_language_settings_inline"),
         callback_data="main_action:language",
         icon_custom_emoji_id="5909006926275945468")
-    status_button_list = []
-    if settings.SERVER_STATUS_URL:
-        status_button_list.append(
-            InlineKeyboardButton(text=_(key="menu_server_status_button"),
-                                 url=settings.SERVER_STATUS_URL))
-
-    if status_button_list:
-        builder.row(language_button, *status_button_list)
-    else:
-        builder.row(language_button)
+    builder.row(language_button)
 
     if settings.SUPPORT_LINK:
         builder.row(
@@ -168,6 +159,9 @@ def get_subscription_options_keyboard(
                     is_best = (months == best_value_months and int(months) > 1)
                     has_saving = (one_month_ppm is not None and ppm is not None
                                  and ppm < one_month_ppm and int(months) > 1)
+                    discount_pct = 0
+                    if has_saving and one_month_ppm:
+                        discount_pct = int(round((1 - ppm / one_month_ppm) * 100))
 
                     if devices > 1:
                         if is_best:
@@ -182,6 +176,7 @@ def get_subscription_options_keyboard(
                             devices=devices,
                             price=price_display,
                             per_month=ppm,
+                            discount=discount_pct,
                             currency_symbol=currency_symbol_val,
                         )
                     else:
@@ -196,12 +191,11 @@ def get_subscription_options_keyboard(
                             months=int(months),
                             price=price_display,
                             per_month=ppm,
+                            discount=discount_pct,
                             currency_symbol=currency_symbol_val,
                         )
                     callback_data = f"subscribe_period:{int(months)}:{devices}"
                 btn_kwargs = dict(text=button_text, callback_data=callback_data)
-                if not traffic_mode and is_best:
-                    btn_kwargs["icon_custom_emoji_id"] = "5368324170671202286"
                 builder.button(**btn_kwargs)
         builder.adjust(1)
     if show_device_limits_button and not traffic_mode:
