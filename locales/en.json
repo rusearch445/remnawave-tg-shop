@@ -1,6 +1,6 @@
 {
   "welcome": "Welcome, {user_name}!",
-  "welcome_new_user": "👋 <b>Welcome, {user_name}!</b>\n\nThis bot provides access to our VPN service.\n\n🆓 <b>Try it for free!</b>\nActivate a <b>{trial_days}-day</b> trial period and test the speed and stability.\n\n📲 <b>How to connect:</b>\n1. Tap the button below to get your key\n2. Copy the connection key\n3. Open a VPN app (Happ, V2RayNG, Streisand, etc.)\n4. Paste the key — done!\n\n👇 Tap to get started:",
+  "welcome_new_user": "<tg-emoji emoji-id=\"5909212436166089875\">👋</tg-emoji> <b>Welcome, {user_name}!</b>\n\nThis bot provides access to our VPN service.\n\n🆓 <b>Try it for free!</b>\nActivate a <b>{trial_days}-day</b> trial period and test the speed and stability.\n\n📲 <b>How to connect:</b>\n1. Tap the button below to get your key\n2. Copy the connection key\n3. Open a VPN app (Happ, V2RayNG, Streisand, etc.)\n4. Paste the key — done!\n\n👇 Tap to get started:",
   "welcome_try_free_button": "🎁 Try for free",
   "welcome_skip_button": "➡️ Go to menu",
   "channel_subscription_required": "To use the bot, join the channel and tap \"Check subscription\".",
@@ -8,7 +8,7 @@
   "channel_subscription_verify_button": "Check subscription",
   "channel_subscription_check_failed": "Couldn't verify the subscription. Please try again later or contact support.",
   "channel_subscription_verified_success": "✅ Subscription confirmed! You're good to go.",
-  "main_menu_greeting": "🏠 Hi, {user_name}!\nWhat would you like to do?",
+  "main_menu_greeting": "<tg-emoji emoji-id=\"5911418533232778965\">🏠</tg-emoji> Hi, {user_name}!\nWhat would you like to do?",
   "menu_activate_trial_button": "🆓 Free Trial",
   "menu_subscribe_inline": "Purchase",
   "menu_my_subscription_inline": "My Subscription",
