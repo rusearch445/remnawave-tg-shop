@@ -196,6 +196,8 @@ def get_subscription_options_keyboard(
                         )
                     callback_data = f"subscribe_period:{int(months)}:{devices}"
                 btn_kwargs = dict(text=button_text, callback_data=callback_data)
+                if not traffic_mode and is_best:
+                    btn_kwargs["style"] = "success"
                 builder.button(**btn_kwargs)
         builder.adjust(1)
     if show_device_limits_button and not traffic_mode:
