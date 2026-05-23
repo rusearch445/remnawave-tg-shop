@@ -81,6 +81,8 @@ class Subscription(Base):
     provider = Column(String, nullable=True)
     skip_notifications = Column(Boolean, default=False)
     auto_renew_enabled = Column(Boolean, default=True, index=True)
+    notified_1d_before = Column(Boolean, default=False, nullable=False)
+    notified_1h_before = Column(Boolean, default=False, nullable=False)
 
     user = relationship("User", back_populates="subscriptions")
 

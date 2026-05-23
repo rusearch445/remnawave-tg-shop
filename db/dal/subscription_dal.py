@@ -181,6 +181,8 @@ async def update_subscription_end_date(
         session, subscription_id, {
             "end_date": new_end_date,
             "last_notification_sent": None,
+            "notified_1d_before": False,
+            "notified_1h_before": False,
             "is_active": True,
             "status_from_panel": "ACTIVE_EXTENDED_BY_BOT"
         })
@@ -248,6 +250,44 @@ async def get_trial_subscriptions_expiring_in_hours(
     )
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+async def get_paid_subscriptions_expiring_for_notification(
+        session: AsyncSession,
+        hours: float,
+        notified_flag: str) -> List[Subscription]:
+    """Find paid (non-trial) subs that expire within `hours` and haven't been notified yet for that level."""
+    now_utc = datetime.now(timezone.utc)
+    window_start = now_utc + timedelta(minutes=max(0, hours * 60 - 10))
+    window_end = now_utc + timedelta(minutes=hours * 60 + 10)
+
+    flag_column = getattr(Subscription, notified_flag)
+
+    stmt = (
+        select(Subscription)
+        .join(Subscription.user)
+        .where(
+            Subscription.is_active == True,
+            Subscription.skip_notifications == False,
+            Subscription.status_from_panel == "ACTIVE",
+            Subscription.provider != None,
+            Subscription.end_date > window_start,
+            Subscription.end_date <= window_end,
+            flag_column == False,
+        )
+        .order_by(Subscription.end_date.asc())
+        .options(selectinload(Subscription.user))
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+async def mark_subscription_notified(
+        session: AsyncSession,
+        subscription_id: int,
+        notified_flag: str) -> Optional[Subscription]:
+    return await update_subscription(
+        session, subscription_id, {notified_flag: True})
 
 
 async def find_subscription_for_notification_update(

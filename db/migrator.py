@@ -158,6 +158,19 @@ def _migration_0007_add_partner_fields_to_users(connection: Connection) -> None:
         )
 
 
+def _migration_0009_add_subscription_notify_flags(connection: Connection) -> None:
+    inspector = inspect(connection)
+    columns: Set[str] = {col["name"] for col in inspector.get_columns("subscriptions")}
+    if "notified_1d_before" not in columns:
+        connection.execute(
+            text("ALTER TABLE subscriptions ADD COLUMN notified_1d_before BOOLEAN NOT NULL DEFAULT FALSE")
+        )
+    if "notified_1h_before" not in columns:
+        connection.execute(
+            text("ALTER TABLE subscriptions ADD COLUMN notified_1h_before BOOLEAN NOT NULL DEFAULT FALSE")
+        )
+
+
 def _migration_0008_create_partner_withdrawals(connection: Connection) -> None:
     connection.execute(
         text(
@@ -223,6 +236,11 @@ MIGRATIONS: List[Migration] = [
         id="0008_create_partner_withdrawals",
         description="Create partner_withdrawals table for partner cash-out requests",
         upgrade=_migration_0008_create_partner_withdrawals,
+    ),
+    Migration(
+        id="0009_add_subscription_notify_flags",
+        description="Add notified_1d_before / notified_1h_before flags to subscriptions",
+        upgrade=_migration_0009_add_subscription_notify_flags,
     ),
 ]
 

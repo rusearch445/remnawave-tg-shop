@@ -39,6 +39,7 @@ from bot.handlers.user import payment as user_payment_webhook_module
 from bot.handlers.admin.sync_admin import perform_sync
 from bot.utils.message_queue import init_queue_manager
 from bot.services.trial_expiry_task import trial_expiry_check_loop
+from bot.services.paid_expiry_task import paid_expiry_check_loop
 
 
 async def register_all_routers(dp: Dispatcher, settings: Settings):
@@ -300,6 +301,11 @@ async def run_bot(settings_param: Settings):
         await trial_expiry_check_loop(bot, settings_param, i18n_instance, local_async_session_factory)
 
     main_tasks.append(asyncio.create_task(trial_notification_task(), name="TrialExpiryNotificationTask"))
+
+    async def paid_notification_task():
+        await paid_expiry_check_loop(bot, settings_param, i18n_instance, local_async_session_factory)
+
+    main_tasks.append(asyncio.create_task(paid_notification_task(), name="PaidExpiryNotificationTask"))
 
     logging.info("Starting bot in Webhook mode with AIOHTTP server...")
     logging.info(f"Starting bot with main tasks: {[task.get_name() for task in main_tasks]}")
