@@ -77,18 +77,27 @@ async def send_main_menu(target_event: Union[types.Message,
             )
 
     show_partner_button = False
+    has_paid_subscription = False
     try:
         from db.dal import user_dal as _user_dal
+        from db.dal import subscription_dal as _sub_dal
         _db_user = await _user_dal.get_user_by_id(session, user_id)
         if _db_user and getattr(_db_user, "is_partner", False):
             show_partner_button = True
+        if _db_user and _db_user.panel_user_uuid:
+            active_sub = await _sub_dal.get_active_subscription_by_user_id(
+                session, user_id, _db_user.panel_user_uuid
+            )
+            if active_sub and active_sub.is_active and active_sub.status_from_panel != "TRIAL":
+                has_paid_subscription = True
     except Exception:
         pass
 
     text = _(key="main_menu_greeting", user_name=user_full_name)
     reply_markup = get_main_menu_inline_keyboard(current_lang, i18n, settings,
                                                  show_trial_button_in_menu,
-                                                 show_partner_button=show_partner_button)
+                                                 show_partner_button=show_partner_button,
+                                                 has_active_subscription=has_paid_subscription)
 
     await send_or_edit_message(
         event=target_event,

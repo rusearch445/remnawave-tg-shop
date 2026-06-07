@@ -32,7 +32,8 @@ def get_main_menu_inline_keyboard(
         i18n_instance,
         settings: Settings,
         show_trial_button: bool = False,
-        show_partner_button: bool = False) -> InlineKeyboardMarkup:
+        show_partner_button: bool = False,
+        has_active_subscription: bool = False) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
 
@@ -41,8 +42,9 @@ def get_main_menu_inline_keyboard(
             InlineKeyboardButton(text=_(key="menu_activate_trial_button"),
                                  callback_data="main_action:request_trial"))
 
+    subscribe_text_key = "menu_renew_inline" if has_active_subscription else "menu_subscribe_inline"
     builder.row(
-        InlineKeyboardButton(text=_(key="menu_subscribe_inline"),
+        InlineKeyboardButton(text=_(key=subscribe_text_key),
                              callback_data="main_action:subscribe",
                              icon_custom_emoji_id="5911418533232778965"))
     builder.row(
