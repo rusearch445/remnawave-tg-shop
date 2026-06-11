@@ -84,12 +84,11 @@ async def send_main_menu(target_event: Union[types.Message,
         _db_user = await _user_dal.get_user_by_id(session, user_id)
         if _db_user and getattr(_db_user, "is_partner", False):
             show_partner_button = True
-        if _db_user and _db_user.panel_user_uuid:
-            active_sub = await _sub_dal.get_active_subscription_by_user_id(
-                session, user_id, _db_user.panel_user_uuid
-            )
-            if active_sub and active_sub.is_active and active_sub.status_from_panel != "TRIAL":
-                has_paid_subscription = True
+        # Show "Renew" for anyone who has ever paid (active or expired),
+        # and "Buy" for trial-only and brand-new users.
+        has_paid_subscription = await _sub_dal.has_paid_subscription_for_user(
+            session, user_id
+        )
     except Exception:
         pass
 

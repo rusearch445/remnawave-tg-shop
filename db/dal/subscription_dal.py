@@ -196,6 +196,23 @@ async def has_any_subscription_for_user(session: AsyncSession,
     return result.scalar_one_or_none() is not None
 
 
+async def has_paid_subscription_for_user(session: AsyncSession,
+                                         user_id: int) -> bool:
+    """Return True if the user has ever had a paid subscription.
+
+    Paid purchases set duration_months > 0, while trial and bonus
+    subscriptions use duration_months = 0. This lets us distinguish
+    users who have actually paid (active or expired) from trial-only users.
+    """
+    stmt = select(Subscription.subscription_id).where(
+        Subscription.user_id == user_id,
+        Subscription.duration_months.isnot(None),
+        Subscription.duration_months > 0,
+    ).limit(1)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none() is not None
+
+
 async def get_subscriptions_near_expiration(
         session: AsyncSession, days_threshold: int) -> List[Subscription]:
     now_utc = datetime.now(timezone.utc)
