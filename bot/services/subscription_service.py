@@ -731,8 +731,35 @@ class SubscriptionService:
             traffic_limit_bytes=self.settings.user_traffic_limit_bytes,
         )
 
-        if device_limit is not None and device_limit >= 1:
-            panel_update_payload["hwidDeviceLimit"] = device_limit
+        # Device limit handling.
+        # * Normal renewal ("subscription"): extra device slots bought
+        #   separately live only in the panel's hwidDeviceLimit, so we must
+        #   never lower it — otherwise paid-for extra slots would be wiped.
+        #   We keep the highest of (requested limit, current panel limit).
+        # * Explicit "renew without extra devices" ("sub_exact"): the user
+        #   deliberately dropped the extras, so we set the limit exactly.
+        force_exact_device_limit = sale_mode == "sub_exact"
+        effective_device_limit = device_limit if (device_limit and device_limit >= 1) else None
+        if not force_exact_device_limit:
+            try:
+                existing_panel_user, _panel_err = await self.panel_service.get_user_by_uuid_safe(
+                    panel_user_uuid
+                )
+                current_panel_limit = (
+                    existing_panel_user.get("hwidDeviceLimit")
+                    if existing_panel_user else None
+                )
+            except Exception:
+                current_panel_limit = None
+            if isinstance(current_panel_limit, int) and current_panel_limit >= 1:
+                effective_device_limit = (
+                    current_panel_limit
+                    if effective_device_limit is None
+                    else max(effective_device_limit, current_panel_limit)
+                )
+
+        if effective_device_limit is not None and effective_device_limit >= 1:
+            panel_update_payload["hwidDeviceLimit"] = effective_device_limit
 
         # Add user description based on Telegram profile
         panel_update_payload["description"] = "\n".join(
@@ -1146,7 +1173,7 @@ class SubscriptionService:
         provider: str = "unknown",
     ) -> Optional[Dict[str, Any]]:
         try:
-            new_device_limit = int(sale_mode.split(":")[1])
+            requested_device_limit = int(sale_mode.split(":")[1])
         except (ValueError, IndexError):
             logging.error("Invalid extra_devices sale_mode: %s", sale_mode)
             return None
@@ -1160,6 +1187,25 @@ class SubscriptionService:
         if not panel_user_uuid:
             logging.error("No panel UUID for user %d", user_id)
             return None
+
+        # The requested limit is an absolute target computed when the payment
+        # keyboard was shown. Re-read the panel limit at activation time and
+        # never lower it, so concurrent renewals or stale data can't wipe
+        # previously purchased slots.
+        try:
+            existing_panel_user, _panel_err = await self.panel_service.get_user_by_uuid_safe(
+                panel_user_uuid
+            )
+            current_panel_limit = (
+                existing_panel_user.get("hwidDeviceLimit")
+                if existing_panel_user else None
+            )
+        except Exception:
+            current_panel_limit = None
+
+        new_device_limit = requested_device_limit
+        if isinstance(current_panel_limit, int) and current_panel_limit >= 1:
+            new_device_limit = max(requested_device_limit, current_panel_limit)
 
         panel_update_payload = {
             "uuid": panel_user_uuid,

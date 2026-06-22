@@ -38,6 +38,7 @@ async def select_subscription_period_callback_handler(
         parts = callback.data.split(":")[1:]
         months = float(parts[0])
         devices = int(parts[1]) if len(parts) > 1 else 1
+        force_exact_devices = len(parts) > 2 and parts[2] == "exact"
     except (ValueError, IndexError):
         logging.error(f"Invalid subscription period in callback_data: {callback.data}")
         try:
@@ -126,7 +127,10 @@ async def select_subscription_period_callback_handler(
         current_lang,
         i18n,
         settings,
-        sale_mode="traffic" if traffic_mode else "subscription",
+        sale_mode=(
+            "traffic" if traffic_mode
+            else ("sub_exact" if force_exact_devices else "subscription")
+        ),
         devices=devices,
     )
 

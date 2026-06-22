@@ -129,6 +129,9 @@ def get_subscription_options_keyboard(
     devices: int = 1,
     extra_device_price: float = 0,
     show_device_limits_button: bool = False,
+    show_base_only_button: bool = False,
+    show_with_devices_button: bool = False,
+    exact_mode: bool = False,
 ) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
@@ -197,6 +200,8 @@ def get_subscription_options_keyboard(
                             currency_symbol=currency_symbol_val,
                         )
                     callback_data = f"subscribe_period:{int(months)}:{devices}"
+                    if exact_mode:
+                        callback_data += ":exact"
                 btn_kwargs = dict(text=button_text, callback_data=callback_data)
                 if not traffic_mode and is_best:
                     btn_kwargs["style"] = "success"
@@ -207,6 +212,20 @@ def get_subscription_options_keyboard(
             InlineKeyboardButton(
                 text=_(key="show_device_limits_button"),
                 callback_data="device_limits:show",
+            )
+        )
+    if show_base_only_button and not traffic_mode:
+        builder.row(
+            InlineKeyboardButton(
+                text=_(key="renew_without_extra_devices_button"),
+                callback_data="subscribe_base_only",
+            )
+        )
+    if show_with_devices_button and not traffic_mode:
+        builder.row(
+            InlineKeyboardButton(
+                text=_(key="renew_with_extra_devices_button"),
+                callback_data="main_action:subscribe",
             )
         )
     builder.row(

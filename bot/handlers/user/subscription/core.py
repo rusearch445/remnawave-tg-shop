@@ -6,7 +6,6 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from typing import Optional, Union
 from datetime import datetime, timezone
-import math
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -49,6 +48,8 @@ async def display_subscription_options(
     settings: Settings,
     session: AsyncSession,
     devices: int = 1,
+    subscription_service: Optional[SubscriptionService] = None,
+    base_only: bool = False,
 ):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
@@ -71,6 +72,31 @@ async def display_subscription_options(
     stars_traffic_packages = getattr(settings, "stars_traffic_packages", {}) or {}
     traffic_mode = bool(getattr(settings, "traffic_sale_mode", False) or stars_traffic_packages)
 
+    # Bundle already-owned extra device slots into the renewal price: if the
+    # user currently has more than one device, default the selection to that
+    # count so each period button is priced with those slots for the new
+    # period (and the slots are paid for again, not carried over for free).
+    # When base_only is requested the user explicitly chose to renew without
+    # their extra devices, so we skip the bundle and keep devices = 1.
+    has_extra_devices = False
+    if (
+        devices == 1
+        and not traffic_mode
+        and not base_only
+        and subscription_service is not None
+        and settings.DEVICE_LIMIT_SELECTION_ENABLED
+    ):
+        try:
+            current_details = await subscription_service.get_active_subscription_details(
+                session, event.from_user.id
+            )
+            current_dev_count = current_details.get("max_devices") if current_details else None
+            if isinstance(current_dev_count, int) and current_dev_count > 1:
+                devices = min(current_dev_count, settings.MAX_DEVICE_LIMIT)
+                has_extra_devices = True
+        except Exception:
+            logging.debug("Could not auto-detect current device count for renewal pricing", exc_info=True)
+
     if traffic_mode:
         if traffic_packages:
             options = traffic_packages
@@ -90,7 +116,9 @@ async def display_subscription_options(
     extra_dev_price = float(settings.EXTRA_DEVICE_PRICE_RUB) if settings.DEVICE_LIMIT_SELECTION_ENABLED else 0
 
     if options:
-        if devices > 1 and not traffic_mode:
+        if base_only and not traffic_mode:
+            text_content = get_text("select_subscription_period_base_only")
+        elif devices > 1 and not traffic_mode:
             text_content = get_text("select_subscription_period_devices")
         else:
             text_content = get_text("select_traffic_package") if traffic_mode else get_text("select_subscription_period")
@@ -100,6 +128,9 @@ async def display_subscription_options(
             devices=devices,
             extra_device_price=extra_dev_price,
             show_device_limits_button=show_dev_btn,
+            show_base_only_button=has_extra_devices,
+            show_with_devices_button=base_only,
+            exact_mode=base_only,
         )
     else:
         text_content = get_text("no_subscription_options_available")
@@ -117,8 +148,21 @@ async def display_subscription_options(
 
 
 @router.callback_query(F.data == "main_action:subscribe")
-async def reshow_subscription_options_callback(callback: types.CallbackQuery, i18n_data: dict, settings: Settings, session: AsyncSession):
-    await display_subscription_options(callback, i18n_data, settings, session)
+async def reshow_subscription_options_callback(callback: types.CallbackQuery, i18n_data: dict, settings: Settings, session: AsyncSession, subscription_service: SubscriptionService):
+    await display_subscription_options(callback, i18n_data, settings, session, subscription_service=subscription_service)
+
+
+@router.callback_query(F.data == "subscribe_base_only")
+async def subscribe_base_only_callback(callback: types.CallbackQuery, i18n_data: dict, settings: Settings, session: AsyncSession, subscription_service: SubscriptionService):
+    # Renew without extra devices: the limit will be reset to base (1).
+    await display_subscription_options(
+        callback, i18n_data, settings, session,
+        subscription_service=subscription_service, base_only=True,
+    )
+    try:
+        await callback.answer()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data == "device_limits:show")
@@ -775,7 +819,8 @@ async def extra_devices_select_callback(
             pass
         return
 
-    price_per_device = math.ceil(days_left / 30) * settings.EXTRA_DEVICE_PRICE_RUB
+    # Pro-rated by remaining days: (monthly price / 30) * days left.
+    price_per_device = max(1, round(settings.EXTRA_DEVICE_PRICE_RUB / 30 * days_left))
     currency = settings.DEFAULT_CURRENCY_SYMBOL
 
     text = get_text("extra_devices_select_quantity", current=current_dev, days_left=days_left)
@@ -856,7 +901,8 @@ async def extra_devices_buy_callback(
     # Recalculate price server-side — never trust callback_data for prices
     end_date = active["end_date"]
     days_left = max(1, (end_date.date() - datetime.now().date()).days)
-    price_per_device = math.ceil(days_left / 30) * settings.EXTRA_DEVICE_PRICE_RUB
+    # Pro-rated by remaining days: (monthly price / 30) * days left.
+    price_per_device = max(1, round(settings.EXTRA_DEVICE_PRICE_RUB / 30 * days_left))
     price = price_per_device * extra_count
 
     from bot.keyboards.inline.user_keyboards import get_payment_method_keyboard
